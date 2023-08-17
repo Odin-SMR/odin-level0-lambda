@@ -101,19 +101,15 @@ def handler(event: Event, context: Context) -> None:
         ssm_client: SSMClient = boto3.client("ssm")
         db_host = ssm_client.get_parameter(
             Name=pg_host_ssm_name,
-            WithDecryption=True,
         )["Parameter"]["Value"]
         db_user = ssm_client.get_parameter(
             Name=pg_user_ssm_name,
-            WithDecryption=True,
         )["Parameter"]["Value"]
         db_pass = ssm_client.get_parameter(
             Name=pg_pass_ssm_name,
-            WithDecryption=True,
         )["Parameter"]["Value"]
         db_name = ssm_client.get_parameter(
             Name=pg_db_ssm_name,
-            WithDecryption=True,
         )["Parameter"]["Value"]
 
         # Import Level 0 file
