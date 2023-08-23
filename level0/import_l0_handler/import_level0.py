@@ -292,7 +292,7 @@ def import_file(
     user: str,
     secret: str,
     db_name: str,
-) -> None:
+) -> dict[str, str]:
     pg_string = f"host={host} user={user} password={secret} dbname={db_name} ssl-mode=verify-ca"  # noqa: E501
     extension = path.splitext(datafile)[1]
     fgr = BytesIO()
@@ -482,3 +482,7 @@ def import_file(
             f"{datafile} has unknown filetype",
             category=UnknownFileType,
         )
+    return {
+        "name": datafile,
+        "type": extension[1:],
+    }

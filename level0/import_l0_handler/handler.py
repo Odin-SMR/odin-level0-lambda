@@ -1,4 +1,3 @@
-import json
 import os
 import stat
 from pathlib import Path
@@ -13,7 +12,7 @@ from .import_level0 import import_file
 BotoClient = Any
 S3Client = BotoClient
 SSMClient = BotoClient
-Event = dict[str, Any]
+Event = dict[str, str]
 Context = Any
 
 
@@ -27,16 +26,6 @@ def get_env_or_raise(variable_name: str) -> str:
             f"{variable_name} is a required environment variable"
         )
     return var
-
-
-def parse_event_message(event: Event) -> tuple[str, str]:
-    try:
-        message: dict[str, Any] = json.loads(event["Records"][0]["body"])
-        bucket = message["Records"][0]["s3"]["bucket"]["name"]
-        key = message["Records"][0]["s3"]["object"]["key"]
-    except (KeyError, TypeError):
-        raise InvalidMessage
-    return bucket, key
 
 
 def download_file(
@@ -55,15 +44,13 @@ def download_file(
     return file_path
 
 
-def handler(event: Event, context: Context) -> None:
+def handler(event: Event, context: Context) -> dict[str, str]:
 
     pg_host_ssm_name = get_env_or_raise("ODIN_PG_HOST_SSM_NAME")
     pg_user_ssm_name = get_env_or_raise("ODIN_PG_USER_SSM_NAME")
     pg_pass_ssm_name = get_env_or_raise("ODIN_PG_PASS_SSM_NAME")
     pg_db_ssm_name = get_env_or_raise("ODIN_PG_DB_SSM_NAME")
     psql_bucket = get_env_or_raise("ODIN_PSQL_BUCKET_NAME")
-
-    bucket, object_path = parse_event_message(event)
 
     with TemporaryDirectory(
         "psql",
@@ -113,9 +100,14 @@ def handler(event: Event, context: Context) -> None:
         )["Parameter"]["Value"]
 
         # Import Level 0 file
-        file_path = download_file(s3_client, bucket, data_dir, object_path)
+        file_path = download_file(
+            s3_client,
+            bucket_name=event["bucket"],
+            path_name=data_dir,
+            file_name=event["key"],
+        )
 
-        import_file(
+        return import_file(
             str(file_path),
             host=db_host,
             user=db_user,

@@ -1,10 +1,15 @@
 from aws_cdk import Duration, RemovalPolicy, Stack, Size
+from aws_cdk import aws_stepfunctions as sfn
+from aws_cdk import aws_stepfunctions_tasks as tasks
 from aws_cdk.aws_ec2 import Vpc, SubnetSelection, SubnetType
 from aws_cdk.aws_iam import Effect, PolicyStatement
 from aws_cdk.aws_lambda import (
     Architecture,
     DockerImageCode,
     DockerImageFunction,
+    Function,
+    InlineCode,
+    Runtime,
 )
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from aws_cdk.aws_s3 import Bucket
@@ -32,6 +37,7 @@ class Level0Stack(Stack):
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
+        # Set up VPC
         vpc = Vpc.from_lookup(
             self,
             "OdinSMRLevel0VPC",
@@ -42,9 +48,10 @@ class Level0Stack(Stack):
             subnet_type=SubnetType.PRIVATE_WITH_EGRESS
         )
 
-        level0_lambda = DockerImageFunction(
+        # Set up Lambda functions
+        import_level0_lambda = DockerImageFunction(
             self,
-            "OdinSMRLevel0Lambda",
+            "OdinSMRImportLevel0Lambda",
             code=DockerImageCode.from_image_asset(
                 ".",
             ),
@@ -69,12 +76,55 @@ class Level0Stack(Stack):
             pg_pass_ssm_name,
             pg_db_ssm_name,
         ):
-            level0_lambda.add_to_role_policy(PolicyStatement(
-                effect=Effect.ALLOW,
-                actions=["ssm:GetParameter"],
-                resources=[f"arn:aws:ssm:*:*:parameter{ssm_name}"]
-            ))
+            import_level0_lambda.add_to_role_policy(
+                PolicyStatement(
+                    effect=Effect.ALLOW,
+                    actions=["ssm:GetParameter"],
+                    resources=[f"arn:aws:ssm:*:*:parameter{ssm_name}"]
+                )
+            )
 
+        activate_level0_lambda = Function(
+            self,
+            "OdinSMRLevel0Lambda",
+            code=InlineCode.from_asset("./level0/activate_l0_handler"),
+            handler="handler.handler",
+            timeout=lambda_timeout,
+            architecture=Architecture.X86_64,
+            runtime=Runtime.PYTHON_3_10,
+        )
+
+        activate_level0_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "states:ListStateMachines",
+                    "states:StartExecution",
+                ],
+                resources=["*"],
+            ),
+        )
+
+        notify_level1_lambda = Function(
+            self,
+            "OdinSMRLevel1Notifier",
+            code=InlineCode.from_asset("./level0/notify_l1_handler"),
+            handler="handler.handler",
+            timeout=lambda_timeout,
+            architecture=Architecture.X86_64,
+            runtime=Runtime.PYTHON_3_10,
+        )
+
+        notify_level1_lambda.add_to_role_policy(
+            PolicyStatement(
+                actions=[
+                    "states:ListStateMachines",
+                    "states:StartExecution",
+                ],
+                resources=["*"],
+            ),
+        )
+
+        # Set up queue of S3 notifications
         queue_name = "ProcessLevel0Queue"
         event_queue = Queue(
             self,
@@ -103,12 +153,131 @@ class Level0Stack(Stack):
             SqsDestination(event_queue),
         )
 
-        level0_lambda.add_event_source(SqsEventSource(
-            event_queue,
-            batch_size=1,
-        ))
+        # Set up tasks
+        import_level0_task = tasks.LambdaInvoke(
+            self,
+            "OdinSMRImportLevel0Task",
+            lambda_function=import_level0_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+                    "bucket": sfn.JsonPath.string_at("$.bucket"),
+                    "key": sfn.JsonPath.string_at("$.key"),
+                },
+            ),
+            result_path="$.ImportLevel0",
+        )
+        import_level0_task.add_retry(
+            errors=["States.ALL"],
+            max_attempts=3,
+            backoff_rate=2,
+            interval=Duration.days(1),
+        )
 
-        level0_bucket.grant_read(level0_lambda)
+        notify_level1_task = tasks.LambdaInvoke(
+            self,
+            "OdinSMRNotifyLevel1Task",
+            lambda_function=notify_level1_lambda,
+            payload=sfn.TaskInput.from_object(
+                {
+
+                },
+            ),
+            result_path="$.NotifyLevel1",
+        )
+        notify_level1_task.add_retry(
+            errors=["States.ALL"],
+            max_attempts=3,
+            backoff_rate=2,
+            interval=Duration.days(1),
+        )
+
+        # Set up flow
+        import_level0_fail_state = sfn.Fail(
+            self,
+            "OdinSMRImportLevel0Fail",
+            comment="Somthing went wrong when importing Level 0 file",
+        )
+        import_level0_success_state = sfn.Succeed(
+            self,
+            "OdinSMRImportLevel0Success",
+        )
+        check_import_status_state = sfn.Choice(
+            self,
+            "OdinSMRCheckImportStaus",
+        )
+        import_level0_task.next(check_import_status_state)
+        check_import_status_state.when(
+            sfn.Condition.or_(
+                sfn.Condition.string_equals(
+                    "$ImportLevel0.Payload.type",
+                    "ac1",
+                ),
+                sfn.Condition.string_equals(
+                    "$ImportLevel0.Payload.type",
+                    "ac2",
+                ),
+            ),
+            notify_level1_task,
+        )
+        check_import_status_state.when(
+            sfn.Condition.or_(
+                sfn.Condition.string_equals(
+                    "$ImportLevel0.Payload.type",
+                    "fba",
+                ),
+                sfn.Condition.string_equals(
+                    "$ImportLevel0.Payload.type",
+                    "att",
+                ),
+                sfn.Condition.string_equals(
+                    "$ImportLevel0.Payload.type",
+                    "shk",
+                ),
+            ),
+            import_level0_success_state,
+        )
+        check_import_status_state.otherwise(import_level0_fail_state)
+
+        notify_level1_fail_state = sfn.Fail(
+            self,
+            "OdinSMRImportNotifyLevel1Fail",
+            comment="Somthing went wrong when notifying Level 1 processor",
+        )
+        notify_level1_success_state = sfn.Succeed(
+            self,
+            "OdinSMRImportNotifyLevel1Success",
+        )
+        check_notify_status_state = sfn.Choice(
+            self,
+            "OdinSMRCheckNotifyLevel1Status",
+        )
+        notify_level1_task.next(check_notify_status_state)
+        check_notify_status_state.when(
+            sfn.Condition.number_equals(
+                "$.NotifyLevel1.Payload.StatusCode",
+                200,
+            ),
+            notify_level1_success_state,
+        )
+        check_notify_status_state.otherwise(notify_level1_fail_state)
+
+        sfn.StateMachine(
+            self,
+            "OdinSMRImportLevel0StateMachine",
+            definition=import_level0_task,
+            state_machine_name="OdinSMRImportLevel0StateMachine",
+        )
+
+        # Set up event source
+        activate_level0_lambda.add_event_source(
+            SqsEventSource(
+                event_queue,
+                batch_size=1,
+            )
+        )
+
+        # Set up additional permissions
+        level0_bucket.grant_read(import_level0_lambda)
 
         psql_bucket = Bucket.from_bucket_name(
             self,
@@ -116,4 +285,4 @@ class Level0Stack(Stack):
             psql_bucket_name,
         )
 
-        psql_bucket.grant_read(level0_lambda)
+        psql_bucket.grant_read(import_level0_lambda)

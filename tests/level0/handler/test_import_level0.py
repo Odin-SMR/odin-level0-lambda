@@ -1,6 +1,6 @@
 import pytest  # type: ignore
 
-from level0.handlers.import_level0 import stw_correction
+from level0.import_l0_handler.import_level0 import stw_correction
 
 
 @pytest.mark.parametrize("filename, correction", [
