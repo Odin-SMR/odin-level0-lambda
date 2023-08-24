@@ -41,10 +41,6 @@ def create_short_hash() -> str:
 def handler(event: Event, context: Context) -> dict[str, int]:
 
     state_machine_arn = find_arn()
-    if state_machine_arn is None:
-        raise StateMachineError(
-            f"no matching state machine {STATE_MACHINE_NAME} found"
-        )
 
     sfn = boto3.client("stepfunctions")
 
