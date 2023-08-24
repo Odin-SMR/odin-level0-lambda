@@ -200,11 +200,11 @@ class Level0Stack(Stack):
         check_import_status_state.when(
             sfn.Condition.or_(
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "ac1",
                 ),
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "ac2",
                 ),
             ),
@@ -213,15 +213,15 @@ class Level0Stack(Stack):
         check_import_status_state.when(
             sfn.Condition.or_(
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "fba",
                 ),
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "att",
                 ),
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "shk",
                 ),
             ),
