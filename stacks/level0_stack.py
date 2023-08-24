@@ -24,10 +24,7 @@ class Level0Stack(Stack):
         scope: Construct,
         id: str,
         level0_bucket_name: str,
-        pg_host_ssm_name: str,
-        pg_user_ssm_name: str,
-        pg_pass_ssm_name: str,
-        pg_db_ssm_name: str,
+        ssm_root: str,
         psql_bucket_name: str,
         queue_retention_period: Duration = Duration.days(14),
         message_timeout: Duration = Duration.hours(12),
@@ -62,27 +59,21 @@ class Level0Stack(Stack):
             ephemeral_storage_size=Size.mebibytes(512),
             memory_size=1024,
             environment={
-                "ODIN_PG_HOST_SSM_NAME": pg_host_ssm_name,
-                "ODIN_PG_USER_SSM_NAME": pg_user_ssm_name,
-                "ODIN_PG_PASS_SSM_NAME": pg_pass_ssm_name,
-                "ODIN_PG_DB_SSM_NAME": pg_db_ssm_name,
+                "ODIN_PG_HOST_SSM_NAME": f"{ssm_root}/host",
+                "ODIN_PG_USER_SSM_NAME": f"{ssm_root}/user",
+                "ODIN_PG_PASS_SSM_NAME": f"{ssm_root}/password",
+                "ODIN_PG_DB_SSM_NAME": f"{ssm_root}/db",
                 "ODIN_PSQL_BUCKET_NAME": psql_bucket_name,
             },
         )
 
-        for ssm_name in (
-            pg_host_ssm_name,
-            pg_user_ssm_name,
-            pg_pass_ssm_name,
-            pg_db_ssm_name,
-        ):
-            import_level0_lambda.add_to_role_policy(
-                PolicyStatement(
-                    effect=Effect.ALLOW,
-                    actions=["ssm:GetParameter"],
-                    resources=[f"arn:aws:ssm:*:*:parameter{ssm_name}"]
-                )
+        import_level0_lambda.add_to_role_policy(
+            PolicyStatement(
+                effect=Effect.ALLOW,
+                actions=["ssm:GetParameter"],
+                resources=[f"arn:aws:ssm:*:*:parameter/{ssm_root}/*"]
             )
+        )
 
         activate_level0_lambda = Function(
             self,
@@ -203,7 +194,7 @@ class Level0Stack(Stack):
         )
         check_import_status_state = sfn.Choice(
             self,
-            "OdinSMRCheckImportStaus",
+            "OdinSMRCheckImportStatus",
         )
         import_level0_task.next(check_import_status_state)
         check_import_status_state.when(

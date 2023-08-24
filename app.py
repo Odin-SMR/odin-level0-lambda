@@ -11,10 +11,7 @@ Level0Stack(
     app,
     "OdinSMRLevel0LambdaStack",
     level0_bucket_name="odin-pdc-l0",
-    pg_host_ssm_name="/odin/psql/host",
-    pg_user_ssm_name="/odin/psql/user",
-    pg_pass_ssm_name="/odin/psql/password",
-    pg_db_ssm_name="/odin/psql/db",
+    ssm_root="/odin/psql",
     psql_bucket_name="odin-psql",
     env=env_EU,
 )
