@@ -9,7 +9,7 @@ import boto3
 Event = dict[str, Any]
 Context = Any
 
-STATE_MACHINE_NAME = "OdinSMRLevel0StateMachine"
+STATE_MACHINE_NAME = "OdinSMRImportLevel0StateMachine"
 
 
 class StateMachineError(Exception):
