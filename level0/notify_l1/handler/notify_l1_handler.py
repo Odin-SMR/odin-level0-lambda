@@ -38,7 +38,7 @@ def create_short_hash() -> str:
     return short_hash
 
 
-def handler(event: Event, context: Context) -> dict[str, int]:
+def notfify_l1_handler(event: Event, context: Context) -> dict[str, int]:
 
     state_machine_arn = find_arn()
 

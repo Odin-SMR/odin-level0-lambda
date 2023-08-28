@@ -52,7 +52,7 @@ def create_short_hash() -> str:
     return short_hash
 
 
-def handler(event: Event, context: Context) -> dict[str, int]:
+def activate_l0_handler(event: Event, context: Context) -> dict[str, int]:
 
     state_machine_arn = find_arn()
 
@@ -63,7 +63,7 @@ def handler(event: Event, context: Context) -> dict[str, int]:
     sfn.start_execution(
         stateMachineArn=state_machine_arn,
         input=json.dumps({"bucket": bucket, "key": object_path}),
-        name=f"{event['name']}-{create_short_hash()}",
+        name=f"{object_path.replace('/', '-')}-{create_short_hash()}",
     )
 
     return {
