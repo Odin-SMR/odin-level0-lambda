@@ -171,7 +171,7 @@ class Level0Stack(Stack):
             payload=sfn.TaskInput.from_object(
                 {
                     "name": sfn.JsonPath.string_at("$.key"),
-                    "type": sfn.JsonPath.string_at("$.ImportLevel0.Payload.type"),
+                    "type": sfn.JsonPath.string_at("$.ImportLevel0.Payload.type"),  # noqa: E501
                 },
             ),
             result_path="$.NotifyLevel1",
