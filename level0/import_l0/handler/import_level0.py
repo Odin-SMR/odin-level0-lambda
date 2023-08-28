@@ -293,7 +293,7 @@ def import_file(
     secret: str,
     db_name: str,
 ) -> dict[str, str]:
-    pg_string = f"host={host} user={user} password={secret} dbname={db_name} ssl-mode=verify-ca"  # noqa: E501
+    pg_string = f"host={host} user={user} password={secret} dbname={db_name} sslmode=verify-ca"  # noqa: E501
     extension = path.splitext(datafile)[1]
     fgr = BytesIO()
     logger = logging.getLogger("level0 process")

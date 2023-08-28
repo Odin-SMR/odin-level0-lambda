@@ -44,7 +44,7 @@ def download_file(
     return file_path
 
 
-def handler(event: Event, context: Context) -> dict[str, str]:
+def import_l0_handler(event: Event, context: Context) -> dict[str, str]:
 
     pg_host_ssm_name = get_env_or_raise("ODIN_PG_HOST_SSM_NAME")
     pg_user_ssm_name = get_env_or_raise("ODIN_PG_USER_SSM_NAME")
@@ -54,7 +54,7 @@ def handler(event: Event, context: Context) -> dict[str, str]:
 
     with TemporaryDirectory(
         "psql",
-        "/tmp",
+        "/tmp/",
     ) as psql_dir, TemporaryDirectory(
         "level0",
         "/tmp/",
@@ -66,21 +66,21 @@ def handler(event: Event, context: Context) -> dict[str, str]:
             s3_client,
             psql_bucket,
             psql_dir,
-            "/postgresql.crt",
+            "postgresql.crt",
         )
         root_cert_path = download_file(
             s3_client,
             psql_bucket,
             psql_dir,
-            "/root.crt",
+            "root.crt",
         )
         pg_key_path = download_file(
             s3_client,
             psql_bucket,
             psql_dir,
-            "/postgresql.key",
+            "postgresql.key",
         )
-        os.chmod(pg_key_path, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP)
+        os.chmod(pg_key_path, stat.S_IWUSR | stat.S_IRUSR)
         os.environ["PGSSLCERT"] = str(pg_cert_path)
         os.environ["PGSSLROOTCERT"] = str(root_cert_path)
         os.environ["PGSSLKEY"] = str(pg_key_path)

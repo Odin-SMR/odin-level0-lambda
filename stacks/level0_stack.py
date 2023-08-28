@@ -50,7 +50,7 @@ class Level0Stack(Stack):
             self,
             "OdinSMRImportLevel0Lambda",
             code=DockerImageCode.from_image_asset(
-                ".",
+                "./level0/import_l0",
             ),
             vpc=vpc,
             vpc_subnets=vpc_subnets,
@@ -71,15 +71,15 @@ class Level0Stack(Stack):
             PolicyStatement(
                 effect=Effect.ALLOW,
                 actions=["ssm:GetParameter"],
-                resources=[f"arn:aws:ssm:*:*:parameter/{ssm_root}/*"]
+                resources=[f"arn:aws:ssm:*:*:parameter{ssm_root}/*"]
             )
         )
 
         activate_level0_lambda = Function(
             self,
             "OdinSMRLevel0Lambda",
-            code=InlineCode.from_asset("./level0/activate_l0_handler"),
-            handler="handler.handler",
+            code=InlineCode.from_asset("./level0/activate_l0"),
+            handler="handler.activate_l0_handler.activate_l0_handler",
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
             runtime=Runtime.PYTHON_3_10,
@@ -98,8 +98,8 @@ class Level0Stack(Stack):
         notify_level1_lambda = Function(
             self,
             "OdinSMRLevel1Notifier",
-            code=InlineCode.from_asset("./level0/notify_l1_handler"),
-            handler="handler.handler",
+            code=InlineCode.from_asset("./level0/notify_l1"),
+            handler="handler.notify_l1_handler.notify_l1_handler",
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
             runtime=Runtime.PYTHON_3_10,
@@ -170,7 +170,8 @@ class Level0Stack(Stack):
             lambda_function=notify_level1_lambda,
             payload=sfn.TaskInput.from_object(
                 {
-
+                    "name": sfn.JsonPath.string_at("$.key"),
+                    "type": sfn.JsonPath.string_at("$.ImportLevel0.Payload.type"),  # noqa: E501
                 },
             ),
             result_path="$.NotifyLevel1",
@@ -200,11 +201,11 @@ class Level0Stack(Stack):
         check_import_status_state.when(
             sfn.Condition.or_(
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "ac1",
                 ),
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "ac2",
                 ),
             ),
@@ -213,15 +214,15 @@ class Level0Stack(Stack):
         check_import_status_state.when(
             sfn.Condition.or_(
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "fba",
                 ),
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "att",
                 ),
                 sfn.Condition.string_equals(
-                    "$ImportLevel0.Payload.type",
+                    "$.ImportLevel0.Payload.type",
                     "shk",
                 ),
             ),
