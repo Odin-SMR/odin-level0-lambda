@@ -170,7 +170,8 @@ class Level0Stack(Stack):
             lambda_function=notify_level1_lambda,
             payload=sfn.TaskInput.from_object(
                 {
-
+                    "name": sfn.JsonPath.string_at("$.key"),
+                    "type": sfn.JsonPath.string_at("$.ImportLevel0.Payload.type"),
                 },
             ),
             result_path="$.NotifyLevel1",

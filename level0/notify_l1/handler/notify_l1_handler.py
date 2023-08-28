@@ -38,7 +38,7 @@ def create_short_hash() -> str:
     return short_hash
 
 
-def notfify_l1_handler(event: Event, context: Context) -> dict[str, int]:
+def notify_l1_handler(event: Event, context: Context) -> dict[str, int]:
 
     state_machine_arn = find_arn()
 
@@ -47,7 +47,7 @@ def notfify_l1_handler(event: Event, context: Context) -> dict[str, int]:
     sfn.start_execution(
         stateMachineArn=state_machine_arn,
         input=json.dumps(event),
-        name=f"{event['name']}-{create_short_hash()}",
+        name=f"{event['name'].replace('/', '-')}-{create_short_hash()}",
     )
 
     return {
