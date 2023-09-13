@@ -159,9 +159,9 @@ class Level0Stack(Stack):
         )
         import_level0_task.add_retry(
             errors=["States.ALL"],
-            max_attempts=3,
+            max_attempts=4,
             backoff_rate=2,
-            interval=Duration.days(1),
+            interval=Duration.minutes(1),
         )
 
         notify_level1_task = tasks.LambdaInvoke(
