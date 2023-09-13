@@ -491,5 +491,5 @@ def import_file(
     return {
         "name": datafile,
         "type": extension[1:],
-        "imported": False,
+        "imported": imported,
     }
