@@ -298,6 +298,7 @@ def import_file(
     fgr = BytesIO()
     logger = logging.getLogger("level0 process")
     logger.info("importing file {0}".format(datafile))
+    imported = False
 
     if extension == ".ac1" or extension == ".ac2":
         ac = ACfile(datafile)
@@ -357,6 +358,7 @@ def import_file(
                 """)
                 cur.execute("insert into ac_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     elif extension == ".fba":
         fba = FBAfile(datafile)
@@ -400,6 +402,7 @@ def import_file(
                 )
                 cur.execute("insert into fba_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     elif extension == ".att":
         datalist = getATT(datafile)
@@ -437,6 +440,7 @@ def import_file(
                 )
                 cur.execute("insert into attitude_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     elif extension == ".shk":
         hk = SHKfile(datafile)
@@ -476,13 +480,16 @@ def import_file(
                 )
                 cur.execute("insert into shk_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     else:
         warnings.warn(
             f"{datafile} has unknown filetype",
             category=UnknownFileType,
         )
+
     return {
         "name": datafile,
         "type": extension[1:],
+        "imported": False,
     }
