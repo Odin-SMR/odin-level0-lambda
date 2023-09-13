@@ -292,7 +292,7 @@ def import_file(
     user: str,
     secret: str,
     db_name: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     pg_string = f"host={host} user={user} password={secret} dbname={db_name} sslmode=verify-ca"  # noqa: E501
     extension = path.splitext(datafile)[1]
     fgr = BytesIO()
