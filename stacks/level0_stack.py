@@ -159,9 +159,9 @@ class Level0Stack(Stack):
         )
         import_level0_task.add_retry(
             errors=["States.ALL"],
-            max_attempts=3,
+            max_attempts=4,
             backoff_rate=2,
-            interval=Duration.days(1),
+            interval=Duration.minutes(1),
         )
 
         notify_level1_task = tasks.LambdaInvoke(
@@ -192,6 +192,11 @@ class Level0Stack(Stack):
         import_level0_success_state = sfn.Succeed(
             self,
             "OdinSMRImportLevel0Success",
+        )
+        import_level0_skip_file_state = sfn.Succeed(
+            self,
+            "OdinSMRImportLevel0SkipFile",
+            comment="Execution OK but unknown file type",
         )
         check_import_status_state = sfn.Choice(
             self,
@@ -227,6 +232,13 @@ class Level0Stack(Stack):
                 ),
             ),
             import_level0_success_state,
+        )
+        check_import_status_state.when(
+            sfn.Condition.boolean_equals(
+                "$.ImportLevel0.Payload.imported",
+                False,
+            ),
+            import_level0_skip_file_state,
         )
         check_import_status_state.otherwise(import_level0_fail_state)
 

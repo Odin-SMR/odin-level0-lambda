@@ -44,7 +44,7 @@ def download_file(
     return file_path
 
 
-def import_l0_handler(event: Event, context: Context) -> dict[str, str]:
+def import_l0_handler(event: Event, context: Context) -> dict[str, Any]:
 
     pg_host_ssm_name = get_env_or_raise("ODIN_PG_HOST_SSM_NAME")
     pg_user_ssm_name = get_env_or_raise("ODIN_PG_USER_SSM_NAME")

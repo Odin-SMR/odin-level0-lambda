@@ -292,12 +292,13 @@ def import_file(
     user: str,
     secret: str,
     db_name: str,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     pg_string = f"host={host} user={user} password={secret} dbname={db_name} sslmode=verify-ca"  # noqa: E501
     extension = path.splitext(datafile)[1]
     fgr = BytesIO()
     logger = logging.getLogger("level0 process")
     logger.info("importing file {0}".format(datafile))
+    imported = False
 
     if extension == ".ac1" or extension == ".ac2":
         ac = ACfile(datafile)
@@ -337,7 +338,7 @@ def import_file(
             with conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like ac_level0 );")
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 cur.execute(
                     "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
                 )
@@ -357,6 +358,7 @@ def import_file(
                 """)
                 cur.execute("insert into ac_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     elif extension == ".fba":
         fba = FBAfile(datafile)
@@ -380,7 +382,7 @@ def import_file(
             with conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like fba_level0 );")
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 cur.execute(
                     "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
                 )
@@ -400,6 +402,7 @@ def import_file(
                 )
                 cur.execute("insert into fba_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     elif extension == ".att":
         datalist = getATT(datafile)
@@ -429,7 +432,7 @@ def import_file(
                 cur.execute(
                     "create temporary table foo ( like attitude_level0 );"
                 )
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 fgr.close()
 
                 cur.execute(
@@ -437,6 +440,7 @@ def import_file(
                 )
                 cur.execute("insert into attitude_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     elif extension == ".shk":
         hk = SHKfile(datafile)
@@ -456,7 +460,7 @@ def import_file(
             with conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like shk_level0 );")
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 cur.execute("""
                     select stw,shk_type,count(*)
                     from foo group by stw, shk_type having count(*) > 1
@@ -476,13 +480,16 @@ def import_file(
                 )
                 cur.execute("insert into shk_level0 (select * from foo)")
             conn.commit()
+            imported = True
 
     else:
         warnings.warn(
             f"{datafile} has unknown filetype",
             category=UnknownFileType,
         )
+
     return {
         "name": datafile,
         "type": extension[1:],
+        "imported": imported,
     }
