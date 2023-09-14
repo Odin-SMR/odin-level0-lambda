@@ -338,7 +338,7 @@ def import_file(
             with conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like ac_level0 );")
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 cur.execute(
                     "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
                 )
@@ -382,7 +382,7 @@ def import_file(
             with conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like fba_level0 );")
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 cur.execute(
                     "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
                 )
@@ -432,7 +432,7 @@ def import_file(
                 cur.execute(
                     "create temporary table foo ( like attitude_level0 );"
                 )
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 fgr.close()
 
                 cur.execute(
