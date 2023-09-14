@@ -460,7 +460,7 @@ def import_file(
             with conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like shk_level0 );")
-                cur.copy_from(file=fgr, table="foo")
+                cur.copy_from(file=fgr, table="foo")  # type: ignore
                 cur.execute("""
                     select stw,shk_type,count(*)
                     from foo group by stw, shk_type having count(*) > 1
