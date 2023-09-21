@@ -76,7 +76,7 @@ def getSHK(hk: SHKfile) -> dict[str, tuple[list[int], np.ndarray]]:
     for shktype in shktypeslist:
         table = HKdata[shktype]
         data = hk.getHKword(table[0], sub=table[1])
-        data1 = np.array(map(table[2], data[1]))
+        data1 = np.array([table[2](x) for x in data[1]])
         if shktype in ("hot load A-side", "hot load B-side"):
             data1 = data1 + 273.15
 
