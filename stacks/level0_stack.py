@@ -159,9 +159,11 @@ class Level0Stack(Stack):
         )
         import_level0_task.add_retry(
             errors=["States.ALL"],
-            max_attempts=4,
+            max_attempts=42,
             backoff_rate=2,
-            interval=Duration.minutes(1),
+            interval=Duration.minutes(6),
+            jitter_strategy=sfn.JitterType.FULL,
+            max_delay=Duration.minutes(42),
         )
 
         notify_level1_task = tasks.LambdaInvoke(
@@ -178,9 +180,11 @@ class Level0Stack(Stack):
         )
         notify_level1_task.add_retry(
             errors=["States.ALL"],
-            max_attempts=3,
+            max_attempts=42,
             backoff_rate=2,
-            interval=Duration.days(1),
+            interval=Duration.minutes(6),
+            jitter_strategy=sfn.JitterType.FULL,
+            max_delay=Duration.minutes(42),
         )
 
         # Set up flow
