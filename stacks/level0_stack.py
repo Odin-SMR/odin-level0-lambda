@@ -163,7 +163,7 @@ class Level0Stack(Stack):
             backoff_rate=2,
             interval=Duration.minutes(6),
             jitter_strategy=sfn.JitterType.FULL,
-            max_delay=Duration.minutes(42),
+            max_delay=Duration.minutes(60),
         )
 
         notify_level1_task = tasks.LambdaInvoke(
@@ -184,7 +184,7 @@ class Level0Stack(Stack):
             backoff_rate=2,
             interval=Duration.minutes(6),
             jitter_strategy=sfn.JitterType.FULL,
-            max_delay=Duration.minutes(42),
+            max_delay=Duration.minutes(60),
         )
 
         # Set up flow
