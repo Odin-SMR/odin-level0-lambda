@@ -49,6 +49,7 @@ class Level0Stack(Stack):
         import_level0_lambda = DockerImageFunction(
             self,
             "OdinSMRImportLevel0Lambda",
+            function_name="OdinSMRImportLevel0Lambda",
             code=DockerImageCode.from_image_asset(
                 "./level0/import_l0",
             ),
@@ -78,6 +79,7 @@ class Level0Stack(Stack):
         activate_level0_lambda = Function(
             self,
             "OdinSMRLevel0Lambda",
+            function_name="OdinSMRLevel0Lambda",
             code=InlineCode.from_asset("./level0/activate_l0"),
             handler="handler.activate_l0_handler.activate_l0_handler",
             timeout=lambda_timeout,
@@ -98,6 +100,7 @@ class Level0Stack(Stack):
         notify_level1_lambda = Function(
             self,
             "OdinSMRLevel1Notifier",
+            function_name="OdinSMRLevel1Notifier",
             code=InlineCode.from_asset("./level0/notify_l1"),
             handler="handler.notify_l1_handler.notify_l1_handler",
             timeout=lambda_timeout,
