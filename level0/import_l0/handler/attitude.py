@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import os
 
 LineResult = tuple[
@@ -20,6 +21,9 @@ class AttitudeParser:
         stw0: int = 0,
         stw1: int = 0x800000000,
     ) -> None:
+        logger = logging.getLogger("level0.attitude_parser")
+        logger.setLevel(logging.INFO)
+
         self.files = files
         self.stw0 = stw0
         self.stw1 = stw1
@@ -27,7 +31,7 @@ class AttitudeParser:
         self.table: dict[str, LineResult] = {}
         for file in files:
             n = 0
-            print(f"processing file {file}")
+            logger.info(f"processing file {file}")
             self.input = open(file, 'r')
             # start to read header info in file
             line = ""
@@ -35,7 +39,7 @@ class AttitudeParser:
             line0 = self.input.readline()
             line1 = line0.rsplit()
             self.soda = int(float(line1[len(line1) - 1]))
-            print(f"soda version {self.soda} for file {file}")
+            logger.debug(f"soda version {self.soda} for file {file}")
             while (line != 'EOF\n'):
                 line = self.input.readline()
             for _ in range(5):
@@ -63,7 +67,7 @@ class AttitudeParser:
                 if stw >= stw0 and stw <= stw1:
                     key = "%08X" % (stw)
                     if key in self.table:
-                        print(f"duplicate in {file}: {key}")
+                        logger.warning(f"duplicate in {file}: {key}")
                         qe0 = self.table[key][10]
                         qe1 = t[10]
                         if qe0 != qe1:
@@ -75,20 +79,20 @@ class AttitudeParser:
                                 qe1[0] * qe1[0] + qe1[1]
                                 * qe1[1] + qe1[2] * qe1[2]
                             )
-                            print(f"errors in {file}: {err0}; {err1}")
+                            logger.warning(f"errors in {file}: {err0}; {err1}")
                             if err1 < err0:
                                 self.table[key] = t
                     else:
                         self.table[key] = t
                     n += 1
                 t = self.getLine()
-            print(
+            logger.info(
                 f"{n} lines in file {os.path.basename(file)} with stw from {min_stw} to {max_stw} ({min_date} to {max_date})"  # noqa: E501
             )
             m += n
             self.input.close()
 
-        print("total of %5d lines" % (m))
+        logger.info("total of %5d lines" % (m))
 
     def rewind(self) -> None:
         self.input.seek(0, 0)
