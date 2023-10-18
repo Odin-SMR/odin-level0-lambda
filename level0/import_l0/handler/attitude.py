@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 LineResult = tuple[
@@ -34,20 +35,35 @@ class AttitudeParser:
             line0 = self.input.readline()
             line1 = line0.rsplit()
             self.soda = int(float(line1[len(line1) - 1]))
+            print("soda version %d for file %s" % (self.soda, file))
             while (line != 'EOF\n'):
                 line = self.input.readline()
             for _ in range(5):
                 self.input.readline()
             t = self.getLine()
+            min_stw = None
+            max_stw = None
+            min_date = None
+            max_date = None
             while t:
                 (
                     year, mon, day, hour, min, secs,
                     stw, orbit, qt, qa, qe, gps, acs,
                 ) = t
+                timestamp = datetime(
+                    int(year), int(mon), int(day),
+                    int(hour), int(min),
+                )
+                if min_stw is None or min_stw > stw:
+                    min_stw = stw
+                    min_date = timestamp
+                if max_stw is None or max_stw < stw:
+                    max_stw = stw
+                    max_date = timestamp
                 if stw >= stw0 and stw <= stw1:
                     key = "%08X" % (stw)
                     if key in self.table:
-                        # print("duplicate")
+                        print("duplicate: %s" % (key))
                         qe0 = self.table[key][10]
                         qe1 = t[10]
                         if qe0 != qe1:
@@ -59,15 +75,22 @@ class AttitudeParser:
                                 qe1[0] * qe1[0] + qe1[1]
                                 * qe1[1] + qe1[2] * qe1[2]
                             )
-                            # print("errors:", err0, err1)
+                            print("errors: %s; %s" % (err0, err1))
                             if err1 < err0:
                                 self.table[key] = t
                     else:
                         self.table[key] = t
-                    n = n + 1
+                    n += 1
                 t = self.getLine()
-            print("%5d lines in file %s" % (n, os.path.basename(file)))
-            m = m + n
+            print(
+                "%5d lines in file %s with stw from %d to %d (%s to %s)"
+                % (
+                    n, os.path.basename(file),
+                    min_stw, max_stw,
+                    min_date.isoformat(), max_date.isoformat(),
+                )
+            )
+            m += n
             self.input.close()
 
         print("total of %5d lines" % (m))
