@@ -27,7 +27,7 @@ class AttitudeParser:
         self.table: dict[str, LineResult] = {}
         for file in files:
             n = 0
-            print("processing file %s" % (file))
+            print(f"processing file {file}")
             self.input = open(file, 'r')
             # start to read header info in file
             line = ""
@@ -35,7 +35,7 @@ class AttitudeParser:
             line0 = self.input.readline()
             line1 = line0.rsplit()
             self.soda = int(float(line1[len(line1) - 1]))
-            print("soda version %d for file %s" % (self.soda, file))
+            print(f"soda version {self.soda} for file {file}")
             while (line != 'EOF\n'):
                 line = self.input.readline()
             for _ in range(5):
@@ -63,7 +63,7 @@ class AttitudeParser:
                 if stw >= stw0 and stw <= stw1:
                     key = "%08X" % (stw)
                     if key in self.table:
-                        print("duplicate: %s" % (key))
+                        print(f"duplicate in {file}: {key}")
                         qe0 = self.table[key][10]
                         qe1 = t[10]
                         if qe0 != qe1:
@@ -75,7 +75,7 @@ class AttitudeParser:
                                 qe1[0] * qe1[0] + qe1[1]
                                 * qe1[1] + qe1[2] * qe1[2]
                             )
-                            print("errors: %s; %s" % (err0, err1))
+                            print(f"errors in {file}: {err0}; {err1}")
                             if err1 < err0:
                                 self.table[key] = t
                     else:
@@ -83,12 +83,7 @@ class AttitudeParser:
                     n += 1
                 t = self.getLine()
             print(
-                "%5d lines in file %s with stw from %d to %d (%s to %s)"
-                % (
-                    n, os.path.basename(file),
-                    min_stw, max_stw,
-                    min_date.isoformat(), max_date.isoformat(),
-                )
+                f"{n} lines in file {os.path.basename(file)} with stw from {min_stw} to {max_stw} ({min_date} to {max_date})"  # noqa: E501
             )
             m += n
             self.input.close()
