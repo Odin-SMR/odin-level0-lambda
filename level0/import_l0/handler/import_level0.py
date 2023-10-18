@@ -300,7 +300,7 @@ def import_file(
     pg_string = f"host={host} user={user} password={secret} dbname={db_name} sslmode=verify-ca"  # noqa: E501
     extension = path.splitext(datafile)[1]
     fgr = BytesIO()
-    
+
     imported = False
 
     if extension == ".ac1" or extension == ".ac2":
