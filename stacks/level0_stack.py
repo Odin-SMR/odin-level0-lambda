@@ -203,7 +203,7 @@ class Level0Stack(Stack):
         import_level0_skip_file_state = sfn.Succeed(
             self,
             "OdinSMRImportLevel0SkipFile",
-            comment="Execution OK but unknown file type",
+            comment="Execution OK but unknown file type, mode or similar",
         )
         check_import_status_state = sfn.Choice(
             self,

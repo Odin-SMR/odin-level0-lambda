@@ -337,8 +337,8 @@ def import_file(
                 break
             except ProgrammingError:
                 continue
-        with psycopg2.connect(pg_string) as conn:
-            with conn.cursor() as cur:
+        if fgr.tell() > 0:
+            with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like ac_level0 );")
                 cur.copy_from(file=fgr, table="foo")  # type: ignore
@@ -360,8 +360,8 @@ def import_file(
                     where f.stw=ac.stw and ac.backend=f.backend
                 """)
                 cur.execute("insert into ac_level0 (select * from foo)")
-            conn.commit()
-            imported = True
+                conn.commit()
+                imported = True
 
     elif extension == ".fba":
         fba = FBAfile(datafile)
@@ -381,8 +381,8 @@ def import_file(
             except ProgrammingError:
                 continue
 
-        with psycopg2.connect(pg_string) as conn:
-            with conn.cursor() as cur:
+        if fgr.tell() > 0:
+            with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like fba_level0 );")
                 cur.copy_from(file=fgr, table="foo")  # type: ignore
@@ -404,8 +404,8 @@ def import_file(
                     "delete from  fba_level0 fba using foo f where f.stw=fba.stw"  # noqa: E501
                 )
                 cur.execute("insert into fba_level0 (select * from foo)")
-            conn.commit()
-            imported = True
+                conn.commit()
+                imported = True
 
     elif extension == ".att":
         datalist = getATT(datafile)
@@ -429,8 +429,8 @@ def import_file(
                 + str(datetime.now()) + "\n"
             ).encode())
 
-        with psycopg2.connect(pg_string) as conn:
-            with conn.cursor() as cur:
+        if fgr.tell() > 0:
+            with psycopg2.connect(pg_string), conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute(
                     "create temporary table foo ( like attitude_level0 );"
@@ -442,8 +442,8 @@ def import_file(
                     "delete from attitude_level0 att using foo f where f.stw=att.stw"  # noqa: E501
                 )
                 cur.execute("insert into attitude_level0 (select * from foo)")
-            conn.commit()
-            imported = True
+                conn.commit()
+                imported = True
 
     elif extension == ".shk":
         hk = SHKfile(datafile)
@@ -459,8 +459,8 @@ def import_file(
                     + str(datetime.now()) + "\n"
                 ).encode())
 
-        with psycopg2.connect(pg_string) as conn:
-            with conn.cursor() as cur:
+        if fgr.tell() > 0:
+            with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
                 fgr.seek(0)
                 cur.execute("create temporary table foo ( like shk_level0 );")
                 cur.copy_from(file=fgr, table="foo")  # type: ignore
@@ -479,11 +479,11 @@ def import_file(
                 fgr.close()
 
                 cur.execute(
-                    "delete from shk_level0 shk using foo f where f.stw=shk.stw"
+                    "delete from shk_level0 shk using foo f where f.stw=shk.stw"  # noqa: E501
                 )
                 cur.execute("insert into shk_level0 (select * from foo)")
-            conn.commit()
-            imported = True
+                conn.commit()
+                imported = True
 
     else:
         warnings.warn(
