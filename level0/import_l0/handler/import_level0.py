@@ -402,7 +402,7 @@ def import_fba(datafile: str, pg_string: str) -> bool:
             )
             cur.execute("insert into fba_level0 (select * from foo)")
         conn.commit()
-    
+
     fgr.close()
     return True
 
@@ -448,7 +448,7 @@ def import_att(datafile: str, pg_string: str) -> bool:
             )
             cur.execute("insert into attitude_level0 (select * from foo)")
         conn.commit()
-    
+
     fgr.close()
     return True
 
