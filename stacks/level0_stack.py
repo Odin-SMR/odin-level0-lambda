@@ -211,6 +211,13 @@ class Level0Stack(Stack):
         )
         import_level0_task.next(check_import_status_state)
         check_import_status_state.when(
+            sfn.Condition.boolean_equals(
+                "$.ImportLevel0.Payload.imported",
+                False,
+            ),
+            import_level0_skip_file_state,
+        )
+        check_import_status_state.when(
             sfn.Condition.or_(
                 sfn.Condition.string_equals(
                     "$.ImportLevel0.Payload.type",
@@ -239,13 +246,6 @@ class Level0Stack(Stack):
                 ),
             ),
             import_level0_success_state,
-        )
-        check_import_status_state.when(
-            sfn.Condition.boolean_equals(
-                "$.ImportLevel0.Payload.imported",
-                False,
-            ),
-            import_level0_skip_file_state,
         )
         check_import_status_state.otherwise(import_level0_fail_state)
 
