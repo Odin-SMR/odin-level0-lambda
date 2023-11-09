@@ -472,6 +472,7 @@ def import_shk(datafile: str, pg_string: str) -> bool:
     if fgr.tell() == 0:
         fgr.close()
         return False
+
     with psycopg2.connect(pg_string) as conn:
         with conn.cursor() as cur:
             fgr.seek(0)
