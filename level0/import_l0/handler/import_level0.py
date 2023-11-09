@@ -286,6 +286,220 @@ def stw_correction(datafile: str) -> int:
     return file_stw & 0xF00000000
 
 
+def import_ac(datafile: str, pg_string: str) -> bool:
+    fgr = BytesIO()
+    ac = ACfile(datafile)
+    ac_2 = ACfile(datafile)
+
+    while True:
+        try:
+            datadict = getAC(ac)
+            discipline = getACdis(ac_2)
+            datadict["stw"] += stw_correction(datafile)
+            if (
+                datadict["inttime"] != 9999
+                and discipline == "AERO"
+                and datadict["frontend"] is not None
+                and datadict["sig_type"] != "problem"
+            ):
+                # create an import file to dump in data into
+                fgr.write((
+                    str(datadict["stw"]) + "\t"
+                    + str(datadict["backend"]) + "\t"
+                    + str(datadict["frontend"]) + "\t"
+                    + str(datadict["sig_type"]) + "\t"
+                    + str(datadict["ssb_att"]) + "\t"
+                    + str(datadict["ssb_fq"]) + "\t"
+                    + str(datadict["prescaler"]) + "\t"
+                    + str(datadict["inttime"]) + "\t"
+                    + str(datadict["mode"]) + "\t"
+                    + "\\\\x" + codecs.encode(datadict["acd_mon"].tobytes(), "hex").decode() + "\t"  # noqa: E501
+                    + "\\\\x" + codecs.encode(datadict["cc"].tobytes(), "hex").decode() + "\t"  # noqa: E501
+                    + str(path.split(datafile)[1]) + "\t"
+                    + str(datetime.now()) + "\n"
+                ).encode())
+        except EOFError:
+            break
+        except ProgrammingError:
+            continue
+
+    if fgr.tell() == 0:
+        fgr.close()
+        return False
+
+    with psycopg2.connect(pg_string) as conn:
+        with conn.cursor() as cur:
+            fgr.seek(0)
+            cur.execute("create temporary table foo ( like ac_level0 );")
+            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.execute(
+                "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
+            )
+
+            with conn.cursor() as cur2:
+                for r in cur:
+                    cur2.execute("""
+                        delete from foo where stw={0}
+                        and created=any(array(select created from foo
+                        where stw={0} limit {1}))
+                    """.format(*[r[0], r[1] - 1]))
+
+            cur.execute("""
+                delete from ac_level0 ac using foo f
+                where f.stw=ac.stw and ac.backend=f.backend
+            """)
+            cur.execute("insert into ac_level0 (select * from foo)")
+        conn.commit()
+
+    fgr.close()
+    return True
+
+
+def import_fba(datafile: str, pg_string: str) -> bool:
+    fgr = BytesIO()
+    fba = FBAfile(datafile)
+
+    while True:
+        try:
+            datadict = getFBA(fba)
+            datadict["stw"] += stw_correction(datafile)
+            # create an import file to dump in data into db
+            fgr.write((
+                str(datadict["stw"]) + "\t"
+                + str(datadict["mech_type"]) + "\t"
+                + str(path.split(datafile)[1]) + "\t"
+                + str(datetime.now()) + "\n"
+            ).encode())
+        except EOFError:
+            break
+        except ProgrammingError:
+            continue
+
+    if fgr.tell() == 0:
+        fgr.close()
+        return False
+
+    with psycopg2.connect(pg_string) as conn:
+        with conn.cursor() as cur:
+            fgr.seek(0)
+            cur.execute("create temporary table foo ( like fba_level0 );")
+            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.execute(
+                "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
+            )
+
+            with conn.cursor() as cur2:
+                for r in cur:
+                    cur2.execute("""
+                        delete from foo where stw={0} and
+                        and created=any(array(
+                            select created from foo where stw={0} limit {1}
+                        ))
+                    """.format(*[r[0], r[1] - 1]))
+
+            cur.execute(
+                "delete from  fba_level0 fba using foo f where f.stw=fba.stw"  # noqa: E501
+            )
+            cur.execute("insert into fba_level0 (select * from foo)")
+        conn.commit()
+    
+    fgr.close()
+    return True
+
+
+def import_att(datafile: str, pg_string: str) -> bool:
+    fgr = BytesIO()
+
+    datalist = getATT(datafile)
+    for datadict in datalist:
+        fgr.write((
+            str(datadict["stw"]) + "\t"
+            + str(datadict["soda"]) + "\t"
+            + str(datadict["year"]) + "\t"
+            + str(datadict["mon"]) + "\t"
+            + str(datadict["day"]) + "\t"
+            + str(datadict["hour"]) + "\t"
+            + str(datadict["min"]) + "\t"
+            + str(datadict["secs"]) + "\t"
+            + str(datadict["orbit"]) + "\t"
+            + str(datadict["qt"]) + "\t"
+            + str(datadict["qa"]) + "\t"
+            + str(datadict["qe"]) + "\t"
+            + str(datadict["gps"]) + "\t"
+            + str(datadict["acs"]) + "\t"
+            + str(path.split(datafile)[1]) + "\t"
+            + str(datetime.now()) + "\n"
+        ).encode())
+
+    if fgr.tell() == 0:
+        fgr.close()
+        return False
+
+    with psycopg2.connect(pg_string) as conn:
+        with conn.cursor() as cur:
+            fgr.seek(0)
+            cur.execute(
+                "create temporary table foo ( like attitude_level0 );"
+            )
+            cur.copy_from(file=fgr, table="foo")  # type: ignore
+
+            cur.execute(
+                "delete from attitude_level0 att using foo f where f.stw=att.stw"  # noqa: E501
+            )
+            cur.execute("insert into attitude_level0 (select * from foo)")
+        conn.commit()
+    
+    fgr.close()
+    return True
+
+
+def import_shk(datafile: str, pg_string: str) -> bool:
+    fgr = BytesIO()
+    hk = SHKfile(datafile)
+
+    datadict = getSHK(hk)
+    for data in datadict:
+        for index, stw in enumerate(datadict[data][0]):
+            stw += stw_correction(datafile)
+            fgr.write((
+                str(stw) + "\t"
+                + str(data) + "\t"
+                + str(float(datadict[data][1][index])) + "\t"
+                + str(path.split(datafile)[1]) + "\t"
+                + str(datetime.now()) + "\n"
+            ).encode())
+
+    if fgr.tell() == 0:
+        fgr.close()
+        return False
+    with psycopg2.connect(pg_string) as conn:
+        with conn.cursor() as cur:
+            fgr.seek(0)
+            cur.execute("create temporary table foo ( like shk_level0 );")
+            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.execute("""
+                select stw,shk_type,count(*)
+                from foo group by stw, shk_type having count(*) > 1
+            """)
+
+            with conn.cursor() as cur2:
+                for r in cur:
+                    cur2.execute("""
+                        delete from foo where stw={0} and shk_type="{1}"
+                        and created=any(array(select created from foo
+                        where stw={0} and shk_type="{1}" limit {2}))
+                    """.format(*[r[0], r[1], r[2] - 1]))
+
+            cur.execute(
+                "delete from shk_level0 shk using foo f where f.stw=shk.stw"  # noqa: E501
+            )
+            cur.execute("insert into shk_level0 (select * from foo)")
+        conn.commit()
+
+    fgr.close()
+    return True
+
+
 def import_file(
     datafile: str,
     host: str,
@@ -299,196 +513,22 @@ def import_file(
 
     pg_string = f"host={host} user={user} password={secret} dbname={db_name} sslmode=verify-ca"  # noqa: E501
     extension = path.splitext(datafile)[1]
-    fgr = BytesIO()
-
-    imported = False
 
     if extension == ".ac1" or extension == ".ac2":
-        ac = ACfile(datafile)
-        ac_2 = ACfile(datafile)
-        while True:
-            try:
-                datadict = getAC(ac)
-                discipline = getACdis(ac_2)
-                datadict["stw"] += stw_correction(datafile)
-                if (
-                    datadict["inttime"] != 9999
-                    and discipline == "AERO"
-                    and datadict["frontend"] is not None
-                    and datadict["sig_type"] != "problem"
-                ):
-                    # create an import file to dump in data into
-                    fgr.write((
-                        str(datadict["stw"]) + "\t"
-                        + str(datadict["backend"]) + "\t"
-                        + str(datadict["frontend"]) + "\t"
-                        + str(datadict["sig_type"]) + "\t"
-                        + str(datadict["ssb_att"]) + "\t"
-                        + str(datadict["ssb_fq"]) + "\t"
-                        + str(datadict["prescaler"]) + "\t"
-                        + str(datadict["inttime"]) + "\t"
-                        + str(datadict["mode"]) + "\t"
-                        + "\\\\x" + codecs.encode(datadict["acd_mon"].tobytes(), "hex").decode() + "\t"  # noqa: E501
-                        + "\\\\x" + codecs.encode(datadict["cc"].tobytes(), "hex").decode() + "\t"  # noqa: E501
-                        + str(path.split(datafile)[1]) + "\t"
-                        + str(datetime.now()) + "\n"
-                    ).encode())
-            except EOFError:
-                break
-            except ProgrammingError:
-                continue
-
-        if fgr.tell() > 0:
-            with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
-                fgr.seek(0)
-                cur.execute("create temporary table foo ( like ac_level0 );")
-                cur.copy_from(file=fgr, table="foo")  # type: ignore
-                cur.execute(
-                    "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
-                )
-
-                with conn.cursor() as cur2:
-                    for r in cur:
-                        cur2.execute("""
-                            delete from foo where stw={0}
-                            and created=any(array(select created from foo
-                            where stw={0} limit {1}))
-                        """.format(*[r[0], r[1] - 1]))
-
-                cur.execute("""
-                    delete from ac_level0 ac using foo f
-                    where f.stw=ac.stw and ac.backend=f.backend
-                """)
-                cur.execute("insert into ac_level0 (select * from foo)")
-                conn.commit()
-                imported = True
-
+        imported = import_ac(datafile, pg_string)
     elif extension == ".fba":
-        fba = FBAfile(datafile)
-        while True:
-            try:
-                datadict = getFBA(fba)
-                datadict["stw"] += stw_correction(datafile)
-                # create an import file to dump in data into db
-                fgr.write((
-                    str(datadict["stw"]) + "\t"
-                    + str(datadict["mech_type"]) + "\t"
-                    + str(path.split(datafile)[1]) + "\t"
-                    + str(datetime.now()) + "\n"
-                ).encode())
-            except EOFError:
-                break
-            except ProgrammingError:
-                continue
-
-        if fgr.tell() > 0:
-            with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
-                fgr.seek(0)
-                cur.execute("create temporary table foo ( like fba_level0 );")
-                cur.copy_from(file=fgr, table="foo")  # type: ignore
-                cur.execute(
-                    "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
-                )
-
-                with conn.cursor() as cur2:
-                    for r in cur:
-                        cur2.execute("""
-                            delete from foo where stw={0} and
-                            and created=any(array(
-                                select created from foo where stw={0} limit {1}
-                            ))
-                        """.format(*[r[0], r[1] - 1]))
-
-                cur.execute(
-                    "delete from  fba_level0 fba using foo f where f.stw=fba.stw"  # noqa: E501
-                )
-                cur.execute("insert into fba_level0 (select * from foo)")
-                conn.commit()
-                imported = True
-
+        imported = import_fba(datafile, pg_string)
     elif extension == ".att":
-        datalist = getATT(datafile)
-        for datadict in datalist:
-            fgr.write((
-                str(datadict["stw"]) + "\t"
-                + str(datadict["soda"]) + "\t"
-                + str(datadict["year"]) + "\t"
-                + str(datadict["mon"]) + "\t"
-                + str(datadict["day"]) + "\t"
-                + str(datadict["hour"]) + "\t"
-                + str(datadict["min"]) + "\t"
-                + str(datadict["secs"]) + "\t"
-                + str(datadict["orbit"]) + "\t"
-                + str(datadict["qt"]) + "\t"
-                + str(datadict["qa"]) + "\t"
-                + str(datadict["qe"]) + "\t"
-                + str(datadict["gps"]) + "\t"
-                + str(datadict["acs"]) + "\t"
-                + str(path.split(datafile)[1]) + "\t"
-                + str(datetime.now()) + "\n"
-            ).encode())
-
-        if fgr.tell() > 0:
-            with psycopg2.connect(pg_string), conn.cursor() as cur:
-                fgr.seek(0)
-                cur.execute(
-                    "create temporary table foo ( like attitude_level0 );"
-                )
-                cur.copy_from(file=fgr, table="foo")  # type: ignore
-
-                cur.execute(
-                    "delete from attitude_level0 att using foo f where f.stw=att.stw"  # noqa: E501
-                )
-                cur.execute("insert into attitude_level0 (select * from foo)")
-                conn.commit()
-                imported = True
-
+        imported = import_att(datafile, pg_string)
     elif extension == ".shk":
-        hk = SHKfile(datafile)
-        datadict = getSHK(hk)
-        for data in datadict:
-            for index, stw in enumerate(datadict[data][0]):
-                stw += stw_correction(datafile)
-                fgr.write((
-                    str(stw) + "\t"
-                    + str(data) + "\t"
-                    + str(float(datadict[data][1][index])) + "\t"
-                    + str(path.split(datafile)[1]) + "\t"
-                    + str(datetime.now()) + "\n"
-                ).encode())
-
-        if fgr.tell() > 0:
-            with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
-                fgr.seek(0)
-                cur.execute("create temporary table foo ( like shk_level0 );")
-                cur.copy_from(file=fgr, table="foo")  # type: ignore
-                cur.execute("""
-                    select stw,shk_type,count(*)
-                    from foo group by stw, shk_type having count(*) > 1
-                """)
-
-                with conn.cursor() as cur2:
-                    for r in cur:
-                        cur2.execute("""
-                            delete from foo where stw={0} and shk_type="{1}"
-                            and created=any(array(select created from foo
-                            where stw={0} and shk_type="{1}" limit {2}))
-                        """.format(*[r[0], r[1], r[2] - 1]))
-
-                cur.execute(
-                    "delete from shk_level0 shk using foo f where f.stw=shk.stw"  # noqa: E501
-                )
-                cur.execute("insert into shk_level0 (select * from foo)")
-                conn.commit()
-                imported = True
-
+        imported = import_shk(datafile, pg_string)
     else:
         warnings.warn(
             f"{datafile} has unknown filetype",
             category=UnknownFileType,
         )
+        imported = False
 
-    fgr.close()
     return {
         "name": datafile,
         "type": extension[1:],
