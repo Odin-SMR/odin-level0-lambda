@@ -337,6 +337,7 @@ def import_file(
                 break
             except ProgrammingError:
                 continue
+
         if fgr.tell() > 0:
             with psycopg2.connect(pg_string) as conn, conn.cursor() as cur:
                 fgr.seek(0)
@@ -353,7 +354,6 @@ def import_file(
                             and created=any(array(select created from foo
                             where stw={0} limit {1}))
                         """.format(*[r[0], r[1] - 1]))
-                fgr.close()
 
                 cur.execute("""
                     delete from ac_level0 ac using foo f
@@ -398,7 +398,6 @@ def import_file(
                                 select created from foo where stw={0} limit {1}
                             ))
                         """.format(*[r[0], r[1] - 1]))
-                fgr.close()
 
                 cur.execute(
                     "delete from  fba_level0 fba using foo f where f.stw=fba.stw"  # noqa: E501
@@ -436,7 +435,6 @@ def import_file(
                     "create temporary table foo ( like attitude_level0 );"
                 )
                 cur.copy_from(file=fgr, table="foo")  # type: ignore
-                fgr.close()
 
                 cur.execute(
                     "delete from attitude_level0 att using foo f where f.stw=att.stw"  # noqa: E501
@@ -476,7 +474,6 @@ def import_file(
                             and created=any(array(select created from foo
                             where stw={0} and shk_type="{1}" limit {2}))
                         """.format(*[r[0], r[1], r[2] - 1]))
-                fgr.close()
 
                 cur.execute(
                     "delete from shk_level0 shk using foo f where f.stw=shk.stw"  # noqa: E501
@@ -491,6 +488,7 @@ def import_file(
             category=UnknownFileType,
         )
 
+    fgr.close()
     return {
         "name": datafile,
         "type": extension[1:],
