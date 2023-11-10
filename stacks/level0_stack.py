@@ -203,13 +203,20 @@ class Level0Stack(Stack):
         import_level0_skip_file_state = sfn.Succeed(
             self,
             "OdinSMRImportLevel0SkipFile",
-            comment="Execution OK but unknown file type",
+            comment="Execution OK but unknown file type, mode or similar",
         )
         check_import_status_state = sfn.Choice(
             self,
             "OdinSMRCheckImportStatus",
         )
         import_level0_task.next(check_import_status_state)
+        check_import_status_state.when(
+            sfn.Condition.boolean_equals(
+                "$.ImportLevel0.Payload.imported",
+                False,
+            ),
+            import_level0_skip_file_state,
+        )
         check_import_status_state.when(
             sfn.Condition.or_(
                 sfn.Condition.string_equals(
@@ -239,13 +246,6 @@ class Level0Stack(Stack):
                 ),
             ),
             import_level0_success_state,
-        )
-        check_import_status_state.when(
-            sfn.Condition.boolean_equals(
-                "$.ImportLevel0.Payload.imported",
-                False,
-            ),
-            import_level0_skip_file_state,
         )
         check_import_status_state.otherwise(import_level0_fail_state)
 
