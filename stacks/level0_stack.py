@@ -272,17 +272,22 @@ class Level0Stack(Stack):
         )
         check_notify_status_state.otherwise(notify_level1_fail_state)
 
-        random_wait_seconds = tasks.EvaluateExpression(
+        random_wait_seconds = sfn.Pass(
             self,
             "OdinSMRGenerateWaitSeconds",
-            expression="States.MathRandom(0, 3600)",
-            result_path="$.waitSeconds",
+            parameters={
+                # put it where your Wait state's seconds_path expects it
+                "waitSeconds.$": "States.MathRandom(0, 3600)"
+            },
+            result_path="$.wait"  # store under $.wait.waitSeconds
         )
+
         wait_state = sfn.Wait(
             self,
             "OdinSMRLevel0Wait",
-            time=sfn.WaitTime.seconds_path("$.waitSeconds")
-            )
+            time=sfn.WaitTime.seconds_path("$.wait.waitSeconds"),
+        )
+
         start = random_wait_seconds.next(wait_state).next(import_level0_task)
 
         sfn.StateMachine(

@@ -331,7 +331,7 @@ def import_ac(datafile: str, pg_string: str) -> bool:
         with conn.cursor() as cur:
             fgr.seek(0)
             cur.execute("create temporary table foo ( like ac_level0 );")
-            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.copy_from(file=fgr, table="foo")
             cur.execute(
                 "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
             )
@@ -383,7 +383,7 @@ def import_fba(datafile: str, pg_string: str) -> bool:
         with conn.cursor() as cur:
             fgr.seek(0)
             cur.execute("create temporary table foo ( like fba_level0 );")
-            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.copy_from(file=fgr, table="foo")
             cur.execute(
                 "select stw, count(*) from foo group by stw having count(*) > 1"  # noqa: E501
             )
@@ -441,7 +441,7 @@ def import_att(datafile: str, pg_string: str) -> bool:
             cur.execute(
                 "create temporary table foo ( like attitude_level0 );"
             )
-            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.copy_from(file=fgr, table="foo")
 
             cur.execute(
                 "delete from attitude_level0 att using foo f where f.stw=att.stw"  # noqa: E501
@@ -477,7 +477,7 @@ def import_shk(datafile: str, pg_string: str) -> bool:
         with conn.cursor() as cur:
             fgr.seek(0)
             cur.execute("create temporary table foo ( like shk_level0 );")
-            cur.copy_from(file=fgr, table="foo")  # type: ignore
+            cur.copy_from(file=fgr, table="foo")
             cur.execute("""
                 select stw,shk_type,count(*)
                 from foo group by stw, shk_type having count(*) > 1
