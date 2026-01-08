@@ -4,3 +4,4 @@ PyGreSQL
 boto3
 botocore
 aws-cdk-lib
+setuptools<66.0.0
