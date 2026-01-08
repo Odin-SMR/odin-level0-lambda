@@ -1,16 +1,11 @@
-from aws_cdk import Duration, RemovalPolicy, Stack, Size
+from typing import Any
+
+from aws_cdk import Duration, RemovalPolicy, Stack
 from aws_cdk import aws_stepfunctions as sfn
 from aws_cdk import aws_stepfunctions_tasks as tasks
-from aws_cdk.aws_ec2 import Vpc, SubnetSelection, SubnetType
+from aws_cdk.aws_ec2 import SubnetSelection, SubnetType, Vpc
 from aws_cdk.aws_iam import Effect, PolicyStatement
-from aws_cdk.aws_lambda import (
-    Architecture,
-    DockerImageCode,
-    DockerImageFunction,
-    Function,
-    InlineCode,
-    Runtime,
-)
+from aws_cdk.aws_lambda import Architecture, Code, Function, InlineCode, Runtime
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from aws_cdk.aws_s3 import Bucket
 from aws_cdk.aws_s3_notifications import SqsDestination
@@ -30,7 +25,7 @@ class Level0Stack(Stack):
         message_timeout: Duration = Duration.hours(12),
         message_attempts: int = 4,
         lambda_timeout: Duration = Duration.seconds(900),
-        **kwargs
+        **kwargs: Any,
     ) -> None:
         super().__init__(scope, id, **kwargs)
 
@@ -41,23 +36,20 @@ class Level0Stack(Stack):
             is_default=False,
             vpc_name="OdinVPC",
         )
-        vpc_subnets = SubnetSelection(
-            subnet_type=SubnetType.PRIVATE_WITH_EGRESS
-        )
+        vpc_subnets = SubnetSelection(subnet_type=SubnetType.PRIVATE_WITH_EGRESS)
 
         # Set up Lambda functions
-        import_level0_lambda = DockerImageFunction(
+        import_level0_lambda = Function(
             self,
             "OdinSMRImportLevel0Lambda",
             function_name="OdinSMRImportLevel0Lambda",
-            code=DockerImageCode.from_image_asset(
-                "./level0/import_l0",
-            ),
-            vpc=vpc,
-            vpc_subnets=vpc_subnets,
+            handler="import_l0_handler.import_l0_handler",
+            code=Code.from_asset("./level0/import_l0"),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
-            ephemeral_storage_size=Size.mebibytes(512),
+            runtime=Runtime.PYTHON_3_13,
+            vpc=vpc,
+            vpc_subnets=vpc_subnets,
             memory_size=1024,
             environment={
                 "ODIN_PG_HOST_SSM_NAME": f"{ssm_root}/host",
@@ -65,6 +57,7 @@ class Level0Stack(Stack):
                 "ODIN_PG_PASS_SSM_NAME": f"{ssm_root}/password",
                 "ODIN_PG_DB_SSM_NAME": f"{ssm_root}/db",
                 "ODIN_PSQL_BUCKET_NAME": psql_bucket_name,
+                "PYTHONPATH": "/var/task/vendor",
             },
         )
 
@@ -72,7 +65,7 @@ class Level0Stack(Stack):
             PolicyStatement(
                 effect=Effect.ALLOW,
                 actions=["ssm:GetParameter"],
-                resources=[f"arn:aws:ssm:*:*:parameter{ssm_root}/*"]
+                resources=[f"arn:aws:ssm:*:*:parameter{ssm_root}/*"],
             )
         )
 
@@ -84,7 +77,7 @@ class Level0Stack(Stack):
             handler="handler.activate_l0_handler.activate_l0_handler",
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
-            runtime=Runtime.PYTHON_3_10,
+            runtime=Runtime.PYTHON_3_13,
         )
 
         activate_level0_lambda.add_to_role_policy(
@@ -105,7 +98,7 @@ class Level0Stack(Stack):
             handler="handler.notify_l1_handler.notify_l1_handler",
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
-            runtime=Runtime.PYTHON_3_10,
+            runtime=Runtime.PYTHON_3_13,
         )
 
         notify_level1_lambda.add_to_role_policy(
@@ -133,8 +126,8 @@ class Level0Stack(Stack):
                     "Failed" + queue_name,
                     queue_name="Failed" + queue_name,
                     retention_period=queue_retention_period,
-                )
-            )
+                ),
+            ),
         )
 
         level0_bucket = Bucket.from_bucket_name(
@@ -176,7 +169,9 @@ class Level0Stack(Stack):
             payload=sfn.TaskInput.from_object(
                 {
                     "name": sfn.JsonPath.string_at("$.key"),
-                    "type": sfn.JsonPath.string_at("$.ImportLevel0.Payload.type"),  # noqa: E501
+                    "type": sfn.JsonPath.string_at(
+                        "$.ImportLevel0.Payload.type"
+                    ),  # noqa: E501
                 },
             ),
             result_path="$.NotifyLevel1",
@@ -279,7 +274,7 @@ class Level0Stack(Stack):
                 # put it where your Wait state's seconds_path expects it
                 "waitSeconds.$": "States.MathRandom(0, 3600)"
             },
-            result_path="$.wait"  # store under $.wait.waitSeconds
+            result_path="$.wait",  # store under $.wait.waitSeconds
         )
 
         wait_state = sfn.Wait(

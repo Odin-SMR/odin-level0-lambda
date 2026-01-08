@@ -1,6 +1,0 @@
-numpy
-psycopg2-binary
-PyGreSQL
-boto3
-botocore
-aws-cdk-lib

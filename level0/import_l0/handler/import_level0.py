@@ -22,14 +22,14 @@ def get_full_path(
     filename: str,
     dirname: str = "/odindata/odin/level0",
 ) -> str:
-    """ Construct filenames """
+    """Construct filenames"""
 
     basename, extention = path.splitext(filename)
     filetype = extention[1:]
     if filetype in ("ac1", "ac2", "shk", "fba"):
         pass
     elif extention == "att":
-        if int("0x" + basename, base=16) < 0x0ce8666f:
+        if int("0x" + basename, base=16) < 0x0CE8666F:
             filetype = "att_17"
     else:
         raise ValueError("file type not recognised for " + filename)
@@ -40,9 +40,9 @@ def get_full_path(
 
 def getSHK(hk: SHKfile) -> dict[str, tuple[list[int], np.ndarray]]:
     """use Ohlbergs code to read in shk data from file
-        and creates a dictionary for easy insertation
-        into a postgresdatabase.
-        """
+    and creates a dictionary for easy insertation
+    into a postgresdatabase.
+    """
     STWa, LO495, LO549, STWb, LO555, LO572 = hk.getLOfreqs()
     STW, SSB495, SSB549, SSB555, SSB572 = hk.getSSBtunings()
     shktypes = {
@@ -109,7 +109,7 @@ def getAC(ac: ACfile) -> dict[str, Any]:
     """
     backend = {
         0x7380: "AC1",
-        0x73b0: "AC2",
+        0x73B0: "AC2",
     }
     CLOCKFREQ = 224.0e6
     head = ac.getSpectrumHead()
@@ -127,7 +127,7 @@ def getAC(ac: ACfile) -> dict[str, Any]:
         lags = np.array(head[50:58], dtype="uint16")
         lags64 = np.array(lags, dtype="int64")
         # combine lag and data to ensure validity of first value in cc-channels
-        zlags = np.left_shift(lags64, 4) + np.bitwise_and(cc64[:, 0], 0xf)
+        zlags = np.left_shift(lags64, 4) + np.bitwise_and(cc64[:, 0], 0xF)
         zlags = zlags.reshape((8, 1))
         mode = ac.Mode(head)
         _, _, band_start = get_seq(mode)
@@ -139,14 +139,14 @@ def getAC(ac: ACfile) -> dict[str, Any]:
                     # find potential underflow in third element of cc
                     cc64[ind, 2] -= 65536
         if ac.IntTime(head) == 0:
-            IntTime = 9999.
+            IntTime = 9999.0
         else:
             IntTime = ac.IntTime(head)
         cc64 = cc64 * 2048.0 * (1 / IntTime) / (CLOCKFREQ / 2.0)
         mon = np.array(head[16:32], dtype="uint16")
         mon.shape = (8, 2)
         # find potential overflows/underflows in monitor values
-        mon64 = np.bitwise_and(zlags, 0xf0000) + mon
+        mon64 = np.bitwise_and(zlags, 0xF0000) + mon
         overflow_mask = np.abs(mon64 - zlags) > 0x8000
         mon64[overflow_mask & (mon64 > zlags)] -= 0x10000
         mon64[overflow_mask & (mon64 < zlags)] += 0x10000
@@ -219,8 +219,9 @@ def getATT(datafile: str) -> list[dict[str, Any]]:
     datalist = []
     for key in keys:
         try:
-            (year, mon, day, hour, minute,
-             secs, stw, orbit, qt, qa, qe, gps, acs) = ap.table[key]
+            (year, mon, day, hour, minute, secs, stw, orbit, qt, qa, qe, gps, acs) = (
+                ap.table[key]
+            )
             datadict = {
                 "year": year,
                 "mon": mon,
@@ -249,14 +250,14 @@ def get_seq(mode: int) -> tuple[np.ndarray, list[list[int]], np.ndarray]:
     ssb = [1, -1, 1, -1, -1, 1, -1, 1]
     mode = (mode << 1) | 1
     for i in range(8):
-        if (mode & 1):
+        if mode & 1:
             m = i
         seq[2 * m] = seq[2 * m] + 1
         mode >>= 1
 
     for i in range(8):
-        if (seq[2 * i]):
-            if (ssb[i] < 0):
+        if seq[2 * i]:
+            if ssb[i] < 0:
                 seq[2 * i + 1] = -1
             else:
                 seq[2 * i + 1] = 1
@@ -303,21 +304,38 @@ def import_ac(datafile: str, pg_string: str) -> bool:
                 and datadict["sig_type"] != "problem"
             ):
                 # create an import file to dump in data into
-                fgr.write((
-                    str(datadict["stw"]) + "\t"
-                    + str(datadict["backend"]) + "\t"
-                    + str(datadict["frontend"]) + "\t"
-                    + str(datadict["sig_type"]) + "\t"
-                    + str(datadict["ssb_att"]) + "\t"
-                    + str(datadict["ssb_fq"]) + "\t"
-                    + str(datadict["prescaler"]) + "\t"
-                    + str(datadict["inttime"]) + "\t"
-                    + str(datadict["mode"]) + "\t"
-                    + "\\\\x" + codecs.encode(datadict["acd_mon"].tobytes(), "hex").decode() + "\t"  # noqa: E501
-                    + "\\\\x" + codecs.encode(datadict["cc"].tobytes(), "hex").decode() + "\t"  # noqa: E501
-                    + str(path.split(datafile)[1]) + "\t"
-                    + str(datetime.now()) + "\n"
-                ).encode())
+                fgr.write(
+                    (
+                        str(datadict["stw"])
+                        + "\t"
+                        + str(datadict["backend"])
+                        + "\t"
+                        + str(datadict["frontend"])
+                        + "\t"
+                        + str(datadict["sig_type"])
+                        + "\t"
+                        + str(datadict["ssb_att"])
+                        + "\t"
+                        + str(datadict["ssb_fq"])
+                        + "\t"
+                        + str(datadict["prescaler"])
+                        + "\t"
+                        + str(datadict["inttime"])
+                        + "\t"
+                        + str(datadict["mode"])
+                        + "\t"
+                        + "\\\\x"
+                        + codecs.encode(datadict["acd_mon"].tobytes(), "hex").decode()
+                        + "\t"  # noqa: E501
+                        + "\\\\x"
+                        + codecs.encode(datadict["cc"].tobytes(), "hex").decode()
+                        + "\t"  # noqa: E501
+                        + str(path.split(datafile)[1])
+                        + "\t"
+                        + str(datetime.now())
+                        + "\n"
+                    ).encode()
+                )
         except EOFError:
             break
         except ProgrammingError:
@@ -338,16 +356,22 @@ def import_ac(datafile: str, pg_string: str) -> bool:
 
             with conn.cursor() as cur2:
                 for r in cur:
-                    cur2.execute("""
+                    cur2.execute(
+                        """
                         delete from foo where stw={0}
                         and created=any(array(select created from foo
                         where stw={0} limit {1}))
-                    """.format(*[r[0], r[1] - 1]))
+                    """.format(
+                            *[r[0], r[1] - 1]
+                        )
+                    )
 
-            cur.execute("""
+            cur.execute(
+                """
                 delete from ac_level0 ac using foo f
                 where f.stw=ac.stw and ac.backend=f.backend
-            """)
+            """
+            )
             cur.execute("insert into ac_level0 (select * from foo)")
         conn.commit()
 
@@ -364,12 +388,18 @@ def import_fba(datafile: str, pg_string: str) -> bool:
             datadict = getFBA(fba)
             datadict["stw"] += stw_correction(datafile)
             # create an import file to dump in data into db
-            fgr.write((
-                str(datadict["stw"]) + "\t"
-                + str(datadict["mech_type"]) + "\t"
-                + str(path.split(datafile)[1]) + "\t"
-                + str(datetime.now()) + "\n"
-            ).encode())
+            fgr.write(
+                (
+                    str(datadict["stw"])
+                    + "\t"
+                    + str(datadict["mech_type"])
+                    + "\t"
+                    + str(path.split(datafile)[1])
+                    + "\t"
+                    + str(datetime.now())
+                    + "\n"
+                ).encode()
+            )
         except EOFError:
             break
         except ProgrammingError:
@@ -390,12 +420,16 @@ def import_fba(datafile: str, pg_string: str) -> bool:
 
             with conn.cursor() as cur2:
                 for r in cur:
-                    cur2.execute("""
+                    cur2.execute(
+                        """
                         delete from foo where stw={0} and
                         and created=any(array(
                             select created from foo where stw={0} limit {1}
                         ))
-                    """.format(*[r[0], r[1] - 1]))
+                    """.format(
+                            *[r[0], r[1] - 1]
+                        )
+                    )
 
             cur.execute(
                 "delete from  fba_level0 fba using foo f where f.stw=fba.stw"  # noqa: E501
@@ -412,24 +446,42 @@ def import_att(datafile: str, pg_string: str) -> bool:
 
     datalist = getATT(datafile)
     for datadict in datalist:
-        fgr.write((
-            str(datadict["stw"]) + "\t"
-            + str(datadict["soda"]) + "\t"
-            + str(datadict["year"]) + "\t"
-            + str(datadict["mon"]) + "\t"
-            + str(datadict["day"]) + "\t"
-            + str(datadict["hour"]) + "\t"
-            + str(datadict["min"]) + "\t"
-            + str(datadict["secs"]) + "\t"
-            + str(datadict["orbit"]) + "\t"
-            + str(datadict["qt"]) + "\t"
-            + str(datadict["qa"]) + "\t"
-            + str(datadict["qe"]) + "\t"
-            + str(datadict["gps"]) + "\t"
-            + str(datadict["acs"]) + "\t"
-            + str(path.split(datafile)[1]) + "\t"
-            + str(datetime.now()) + "\n"
-        ).encode())
+        fgr.write(
+            (
+                str(datadict["stw"])
+                + "\t"
+                + str(datadict["soda"])
+                + "\t"
+                + str(datadict["year"])
+                + "\t"
+                + str(datadict["mon"])
+                + "\t"
+                + str(datadict["day"])
+                + "\t"
+                + str(datadict["hour"])
+                + "\t"
+                + str(datadict["min"])
+                + "\t"
+                + str(datadict["secs"])
+                + "\t"
+                + str(datadict["orbit"])
+                + "\t"
+                + str(datadict["qt"])
+                + "\t"
+                + str(datadict["qa"])
+                + "\t"
+                + str(datadict["qe"])
+                + "\t"
+                + str(datadict["gps"])
+                + "\t"
+                + str(datadict["acs"])
+                + "\t"
+                + str(path.split(datafile)[1])
+                + "\t"
+                + str(datetime.now())
+                + "\n"
+            ).encode()
+        )
 
     if fgr.tell() == 0:
         fgr.close()
@@ -438,9 +490,7 @@ def import_att(datafile: str, pg_string: str) -> bool:
     with psycopg2.connect(pg_string) as conn:
         with conn.cursor() as cur:
             fgr.seek(0)
-            cur.execute(
-                "create temporary table foo ( like attitude_level0 );"
-            )
+            cur.execute("create temporary table foo ( like attitude_level0 );")
             cur.copy_from(file=fgr, table="foo")
 
             cur.execute(
@@ -461,13 +511,20 @@ def import_shk(datafile: str, pg_string: str) -> bool:
     for data in datadict:
         for index, stw in enumerate(datadict[data][0]):
             stw += stw_correction(datafile)
-            fgr.write((
-                str(stw) + "\t"
-                + str(data) + "\t"
-                + str(float(datadict[data][1][index])) + "\t"
-                + str(path.split(datafile)[1]) + "\t"
-                + str(datetime.now()) + "\n"
-            ).encode())
+            fgr.write(
+                (
+                    str(stw)
+                    + "\t"
+                    + str(data)
+                    + "\t"
+                    + str(float(datadict[data][1][index]))
+                    + "\t"
+                    + str(path.split(datafile)[1])
+                    + "\t"
+                    + str(datetime.now())
+                    + "\n"
+                ).encode()
+            )
 
     if fgr.tell() == 0:
         fgr.close()
@@ -478,18 +535,24 @@ def import_shk(datafile: str, pg_string: str) -> bool:
             fgr.seek(0)
             cur.execute("create temporary table foo ( like shk_level0 );")
             cur.copy_from(file=fgr, table="foo")
-            cur.execute("""
+            cur.execute(
+                """
                 select stw,shk_type,count(*)
                 from foo group by stw, shk_type having count(*) > 1
-            """)
+            """
+            )
 
             with conn.cursor() as cur2:
                 for r in cur:
-                    cur2.execute("""
+                    cur2.execute(
+                        """
                         delete from foo where stw={0} and shk_type="{1}"
                         and created=any(array(select created from foo
                         where stw={0} and shk_type="{1}" limit {2}))
-                    """.format(*[r[0], r[1], r[2] - 1]))
+                    """.format(
+                            *[r[0], r[1], r[2] - 1]
+                        )
+                    )
 
             cur.execute(
                 "delete from shk_level0 shk using foo f where f.stw=shk.stw"  # noqa: E501

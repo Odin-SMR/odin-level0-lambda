@@ -22,9 +22,7 @@ class InvalidMessage(Exception):
 
 def get_env_or_raise(variable_name: str) -> str:
     if (var := os.environ.get(variable_name)) is None:
-        raise EnvironmentError(
-            f"{variable_name} is a required environment variable"
-        )
+        raise EnvironmentError(f"{variable_name} is a required environment variable")
     return var
 
 
@@ -52,14 +50,17 @@ def import_l0_handler(event: Event, context: Context) -> dict[str, Any]:
     pg_db_ssm_name = get_env_or_raise("ODIN_PG_DB_SSM_NAME")
     psql_bucket = get_env_or_raise("ODIN_PSQL_BUCKET_NAME")
 
-    with TemporaryDirectory(
-        "psql",
-        "/tmp/",
-    ) as psql_dir, TemporaryDirectory(
-        "level0",
-        "/tmp/",
-    ) as data_dir:
-        s3_client = boto3.client('s3')
+    with (
+        TemporaryDirectory(
+            "psql",
+            "/tmp/",
+        ) as psql_dir,
+        TemporaryDirectory(
+            "level0",
+            "/tmp/",
+        ) as data_dir,
+    ):
+        s3_client = boto3.client("s3")
 
         # Setup SSL for Postgres
         pg_cert_path = download_file(
@@ -88,16 +89,24 @@ def import_l0_handler(event: Event, context: Context) -> dict[str, Any]:
         ssm_client: SSMClient = boto3.client("ssm")
         db_host = ssm_client.get_parameter(
             Name=pg_host_ssm_name,
-        )["Parameter"]["Value"]
+        )[
+            "Parameter"
+        ]["Value"]
         db_user = ssm_client.get_parameter(
             Name=pg_user_ssm_name,
-        )["Parameter"]["Value"]
+        )[
+            "Parameter"
+        ]["Value"]
         db_pass = ssm_client.get_parameter(
             Name=pg_pass_ssm_name,
-        )["Parameter"]["Value"]
+        )[
+            "Parameter"
+        ]["Value"]
         db_name = ssm_client.get_parameter(
             Name=pg_db_ssm_name,
-        )["Parameter"]["Value"]
+        )[
+            "Parameter"
+        ]["Value"]
 
         # Import Level 0 file
         file_path = download_file(

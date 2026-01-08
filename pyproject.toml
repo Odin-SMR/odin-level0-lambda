@@ -1,0 +1,32 @@
+[project]
+name = "odin-level0-lambda"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aws-cdk-lib>=2.233.0",
+    "boto3>=1.42.24",
+]
+
+[dependency-groups]
+dev = [
+    "black>=25.12.0",
+    "boto3-stubs[ecr,essential,s3,ssm,stepfunctions]>=1.42.24",
+    "mypy>=1.19.1",
+    "pytest>=9.0.2",
+    "ruff>=0.14.10",
+    "types-psycopg2>=2.9.21.20251012",
+]
+import-l0 = [
+    "numpy==2.2.6",
+    "psycopg2-binary>=2.9.11",
+    "pygresql>=6.2.2",
+]
+
+[tool.mypy]
+exclude = '(^|/)(cdk\.out)(/|$)'
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
