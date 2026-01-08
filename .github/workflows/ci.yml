@@ -38,6 +38,15 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
+        
+      - name: Setup node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install aws-cdk
+        run: |
+          npm install -g aws-cdk
 
       - name: "Set up Python"
         uses: actions/setup-python@v6
