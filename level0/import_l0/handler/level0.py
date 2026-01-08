@@ -100,7 +100,7 @@ class Level0File:
         self.input.close
 
 
-HKdata: dict[str, tuple[int, int, Callable[[int], float]]] = {
+HKdata: dict[str, tuple[int, int, Callable[[int], float | int]]] = {
     "AOS laser temperature": (1, 0, lambda x: 0.01141 * x + 7.3),
     "AOS laser current": (1, 1, lambda x: 0.0388 * x),
     "AOS structure": (1, 2, lambda x: 0.01167 * x + 0.764),
