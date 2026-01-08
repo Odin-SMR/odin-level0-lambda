@@ -1,17 +1,18 @@
 import codecs
 import logging
 import warnings
+from datetime import datetime
 from io import BytesIO
 from os import path
-from datetime import datetime
 from typing import Any
 
 import numpy as np
 import psycopg2
+from numpy.typing import NDArray
 from psycopg2 import ProgrammingError
 
-from .level0 import ACfile, FBAfile, SHKfile, HKdata
 from .attitude import AttitudeParser
+from .level0 import ACfile, FBAfile, HKdata, SHKfile
 
 
 class UnknownFileType(Warning):
@@ -38,7 +39,7 @@ def get_full_path(
     return path.join(dirname, filetype, partdir, filename)
 
 
-def getSHK(hk: SHKfile) -> dict[str, tuple[list[int], np.ndarray]]:
+def getSHK(hk: SHKfile) -> dict[str, tuple[list[int], NDArray[np.floating]]]:
     """use Ohlbergs code to read in shk data from file
     and creates a dictionary for easy insertation
     into a postgresdatabase.
@@ -244,7 +245,9 @@ def getATT(datafile: str) -> list[dict[str, Any]]:
     return datalist
 
 
-def get_seq(mode: int) -> tuple[np.ndarray, list[list[int]], np.ndarray]:
+def get_seq(
+    mode: int,
+) -> tuple[NDArray[np.integer], list[list[int]], NDArray[np.integer]]:
     """get the ac chip configuration from the mode parameter"""
     seq = np.zeros(16, dtype=int)
     ssb = [1, -1, 1, -1, -1, 1, -1, 1]

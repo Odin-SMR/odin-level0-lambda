@@ -25,7 +25,10 @@ import-l0 = [
 ]
 
 [tool.mypy]
-exclude = '(^|/)(cdk\.out)(/|$)'
+exclude = [
+    "cdk.out",
+    "level0/import_l0/vendor",
+]
 strict = true
 
 [tool.pytest.ini_options]
