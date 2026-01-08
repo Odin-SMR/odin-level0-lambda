@@ -11,7 +11,8 @@ SSB_PARAMS: dict[str, tuple[float, float, float, float]] = {
 
 
 class Level0File:
-    """ A Python class to handle Odin level 0 files """
+    """A Python class to handle Odin level 0 files"""
+
     TypeError = "wrong file type"
 
     def __init__(self, filename: str) -> None:
@@ -21,23 +22,23 @@ class Level0File:
         self.first = stw
         self.user = user
         sizeunit = 15 * struct.calcsize("H")
-        if user == 0x732c:
+        if user == 0x732C:
             self.type = "SHK"
             self.tail = 4
             self.blocksize = 5 * sizeunit
-        elif user == 0x73ec:
+        elif user == 0x73EC:
             self.type = "FBA"
             self.tail = 4
             self.blocksize = 1 * sizeunit
-        elif (user & 0xfff0) == 0x7360:
+        elif (user & 0xFFF0) == 0x7360:
             self.type = "AOS"
             self.tail = 4
             self.blocksize = 8 * sizeunit
-        elif (user & 0xfff0) == 0x7380:
+        elif (user & 0xFFF0) == 0x7380:
             self.type = "AC1"
             self.tail = 7
             self.blocksize = 5 * sizeunit
-        elif (user & 0xfff0) == 0x73B0:
+        elif (user & 0xFFF0) == 0x73B0:
             self.type = "AC2"
             self.tail = 7
             self.blocksize = 5 * sizeunit
@@ -73,8 +74,8 @@ class Level0File:
                     dis = "AERO"
             else:
                 dis = None
-            acdcmode = (index & 0x0f00) >> 8
-            science = index & 0x00ff
+            acdcmode = (index & 0x0F00) >> 8
+            science = index & 0x00FF
             return self.stw, valid, dis, acdcmode, science
         return None
 
@@ -86,7 +87,7 @@ class Level0File:
             self.sync = words[0]
             self.stw = words[2] * 65536 + words[1]
             self.user = words[3]
-            words = words[4:-self.tail]
+            words = words[4 : -self.tail]
         else:
             words = []
         return words
@@ -99,7 +100,7 @@ class Level0File:
         self.input.close
 
 
-HKdata: dict[str, tuple[int, int, Callable]] = {
+HKdata: dict[str, tuple[int, int, Callable[[int], float | int]]] = {
     "AOS laser temperature": (1, 0, lambda x: 0.01141 * x + 7.3),
     "AOS laser current": (1, 1, lambda x: 0.0388 * x),
     "AOS structure": (1, 2, lambda x: 0.01167 * x + 0.764),
@@ -143,12 +144,28 @@ HKdata: dict[str, tuple[int, int, Callable]] = {
     "hot load B-side": (28, 1, lambda x: 20.0 * (5.0 * x / 4095.0 - 1.16)),
     "image load A-side": (20, 2, lambda x: 20.0 * (5.0 * x / 4095.0 - 1.16)),
     "image load B-side": (28, 2, lambda x: 20.0 * (5.0 * x / 4095.0 - 1.16)),
-    "mixer A-side": (20, 3, lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15),  # noqa: E501
-    "mixer B-side": (28, 3, lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15),  # noqa: E501
+    "mixer A-side": (
+        20,
+        3,
+        lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15,
+    ),  # noqa: E501
+    "mixer B-side": (
+        28,
+        3,
+        lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15,
+    ),  # noqa: E501
     "LNA A-side": (20, 4, lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15),
     "LNA B-side": (28, 4, lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15),
-    "119GHz mixer A-side": (20, 5, lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15),  # noqa: E501
-    "119GHz mixer B-side": (28, 5, lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15),  # noqa: E501
+    "119GHz mixer A-side": (
+        20,
+        5,
+        lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15,
+    ),  # noqa: E501
+    "119GHz mixer B-side": (
+        28,
+        5,
+        lambda x: 70.0 * (5.0 * x / 4095.0 - 3.86) + 273.15,
+    ),  # noqa: E501
     "HRO frequency 495": (21, 0, lambda x: x + 4000.0),
     "HRO frequency 549": (21, 2, lambda x: x + 4000.0),
     "HRO frequency 572": (29, 0, lambda x: x + 4000.0),
@@ -175,15 +192,19 @@ HKdata: dict[str, tuple[int, int, Callable]] = {
     "SSB mechanism B 555": (42, 2, lambda x: x),
     "119GHz voltage": (46, 4, lambda x: -56.0 + x * 112.0 / 4095.0),
     "119GHz current": (46, 12, lambda x: -1091.0 + x * 2178.0 / 4095.0),
-    "ACDC1 sync": (47, -1, lambda x: (int(x) >> 8) & 0x000f),
-    "ACDC2 sync": (48, -1, lambda x: (x >> 3) & 0x000f),
-    "119GHz DRO": (13, 1, lambda x: 944.035 - (0.8374 - (2.567e-4 - 2.74e-8 * x) * x) * x),  # noqa: E501
+    "ACDC1 sync": (47, -1, lambda x: (int(x) >> 8) & 0x000F),
+    "ACDC2 sync": (48, -1, lambda x: (x >> 3) & 0x000F),
+    "119GHz DRO": (
+        13,
+        1,
+        lambda x: 944.035 - (0.8374 - (2.567e-4 - 2.74e-8 * x) * x) * x,
+    ),  # noqa: E501
     "ACS availability": (49, 13, lambda x: x),
 }
 
 
 class SHKfile(Level0File):
-    """ A derived class to handle Odin level 0 SHK files """
+    """A derived class to handle Odin level 0 SHK files"""
 
     def __init__(self, filename: str) -> None:
         # print("init SHK...)"
@@ -202,9 +223,9 @@ class SHKfile(Level0File):
         words = self.getBlock()
         while words:
             word = words[which]
-            found = (word != 0xffff)
+            found = word != 0xFFFF
             if sub > -1:
-                found = ((word & 0x000f) == sub)
+                found = (word & 0x000F) == sub
                 word = word >> 4
             if found:
                 stw.append(self.stw)
@@ -221,7 +242,7 @@ class SHKfile(Level0File):
         list[float],
     ]:
         def sub(word: int) -> int:
-            return word & 0x000f
+            return word & 0x000F
 
         def freq(hro: int, pro: int, m: float) -> float:
             return ((4000.0 + hro) * m + pro / 32.0 + 100.0) * 6.0e6
@@ -285,11 +306,11 @@ class SHKfile(Level0File):
 
         return STWa, LO495, LO549, STWb, LO555, LO572
 
-    def getSSBtunings(self) -> tuple[
-        list[int], list[int], list[int], list[int], list[int]
-    ]:
+    def getSSBtunings(
+        self,
+    ) -> tuple[list[int], list[int], list[int], list[int], list[int]]:
         def sub(word: int) -> int:
-            return word & 0x000f
+            return word & 0x000F
 
         self.rewind()
         stw: list[int] = []
@@ -299,7 +320,7 @@ class SHKfile(Level0File):
         words = self.getBlock()
         while words:
             stw.append(self.stw)
-            if words[35] != 0xffff and words[36] != 0xffff:
+            if words[35] != 0xFFFF and words[36] != 0xFFFF:
                 aside.append(words[35])
                 bside.append(words[36])
                 which.append("A")
@@ -317,8 +338,10 @@ class SHKfile(Level0File):
         SSB572: list[int] = []
         while i < len(stw) - 2:
             if (
-                sub(aside[i]) == 0 and sub(bside[i]) == 0
-                and sub(aside[i + 2]) == 2 and sub(bside[i + 2]) == 2
+                sub(aside[i]) == 0
+                and sub(bside[i]) == 0
+                and sub(aside[i + 2]) == 2
+                and sub(bside[i + 2]) == 2
             ):
                 STW.append(stw[i])
                 if which[i] == "A":
@@ -339,28 +362,28 @@ class SHKfile(Level0File):
 
 
 class FBAfile(Level0File):
-    """ A derived  class to handle Odin level 0 FBA files """
+    """A derived  class to handle Odin level 0 FBA files"""
 
     def __init__(self, filename: str) -> None:
         Level0File.__init__(self, filename)
         if self.type != "FBA":
             raise TypeError
-        self.block0 = 0x73ec
+        self.block0 = 0x73EC
 
     def getSpectrumHead(self) -> list[int] | None:
         words = self.getBlock()
         while words:
-            if self.sync == 0x2bd3 and self.user == self.block0:
+            if self.sync == 0x2BD3 and self.user == self.block0:
                 return words
             words = self.getBlock()
         return None
 
-    def Type(self, words) -> str:
+    def Type(self, words: list[int]) -> str:
         phase = ["REF", "SK1", "CAL", "SK2"]
         mirror = words[5]
-        if mirror == 0xffff:
+        if mirror == 0xFFFF:
             mirror = words[6]
-            if mirror == 0xffff:
+            if mirror == 0xFFFF:
                 mirror = 0
         mirror = (mirror >> 13) & 3
         type = phase[mirror]
@@ -368,7 +391,7 @@ class FBAfile(Level0File):
 
 
 class ACfile(Level0File):
-    """ A derived  class to handle Odin level 0 AC1 and AC2 files """
+    """A derived  class to handle Odin level 0 AC1 and AC2 files"""
 
     def __init__(self, filename: str) -> None:
         Level0File.__init__(self, filename)
@@ -377,12 +400,12 @@ class ACfile(Level0File):
         if self.type == "AC1":
             self.block0 = 0x7380
         elif self.type == "AC2":
-            self.block0 = 0x73b0
+            self.block0 = 0x73B0
 
     def getSpectrumHead(self) -> list[int] | None:
         words = self.getBlock()
         while words:
-            if self.sync == 0x2bd3 and self.user == self.block0:
+            if self.sync == 0x2BD3 and self.user == self.block0:
                 return words
             words = self.getBlock()
         return None
@@ -407,7 +430,7 @@ class ACfile(Level0File):
 
     def Frontend(self, words: list[int]) -> str | None:
         frontend = ["549", "495", "572", "555", "SPL", "119"]
-        input = words[36] >> 8 & 0x000f
+        input = words[36] >> 8 & 0x000F
         if input in range(1, 7):
             return frontend[input - 1]
         # print("(%08X) invalid input channel %d" % (self.stw, input))
@@ -416,7 +439,7 @@ class ACfile(Level0File):
     def Type(self, words: list[int]) -> str:
         rx = self.Frontend(words)
         chop = words[8]
-        if chop == 0xaaaa:
+        if chop == 0xAAAA:
             if rx == "495" or rx == "549":
                 return "REF"
             elif rx == "555" or rx == "572" or rx == "119":
@@ -437,31 +460,31 @@ class ACfile(Level0File):
         return "NAN"
 
     def Chop(self, words: list[int]) -> str:
-        """ This routine returns the phase of FBA data via
+        """This routine returns the phase of FBA data via
         the chopper wheel infromation contained in AC2"""
         if self.type != "AC2":
             raise TypeError
         chop = words[8]
-        if chop == 0xaaaa:
+        if chop == 0xAAAA:
             return "SIG"
         return "REF"
 
     def CmdTime(self, words: list[int]) -> float:
         """Calculate command time"""
-        return float(words[35] & 0xff) / 16.0
+        return float(words[35] & 0xFF) / 16.0
 
     def IntTime(self, words: list[int]) -> float:
         """Calculate integration time"""
         prescaler = int(words[49])
         if prescaler >= 2 and prescaler <= 6:
-            samples = int(0x0000ffff & words[12])
+            samples = int(0x0000FFFF & words[12])
             samples = samples << (14 - prescaler)
             return float(samples) / 10.0e6
         # prescaler out of range
         return 0
 
     def Mode(self, words: list[int]) -> int:
-        mode = words[35] >> 8 & 0x00ff
+        mode = words[35] >> 8 & 0x00FF
         # bands = 0
         # if mode == 0x7f or mode == 0xf7:
         #     bands = 8
@@ -487,7 +510,7 @@ class ACfile(Level0File):
 
 
 class AOSfile(Level0File):
-    """ A derived  class to handle Odin level 0 AOS files """
+    """A derived  class to handle Odin level 0 AOS files"""
 
     def __init__(self, filename: str) -> None:
         Level0File.__init__(self, filename)
@@ -498,7 +521,7 @@ class AOSfile(Level0File):
     def getSpectrumHead(self) -> list[int] | None:
         words = self.getBlock()
         while words:
-            if self.sync == 0x2bd3 and self.user == self.block0:
+            if self.sync == 0x2BD3 and self.user == self.block0:
                 if words[1] != 322:
                     return words
             words = self.getBlock()
@@ -539,7 +562,7 @@ class AOSfile(Level0File):
                 type = "SIG"
 
         if type == "REF":
-            calmirror = words[11] & 0x000f
+            calmirror = words[11] & 0x000F
             if calmirror == 1:
                 type = "SK1"
             elif calmirror == 2:

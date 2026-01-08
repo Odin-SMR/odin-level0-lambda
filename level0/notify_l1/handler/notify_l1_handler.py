@@ -25,9 +25,7 @@ def find_arn() -> str:
             state_machine_arn = i["stateMachineArn"]
             break
     if state_machine_arn is None:
-        raise StateMachineError(
-            f"no matching state machine {STATE_MACHINE_NAME} found"
-        )
+        raise StateMachineError(f"no matching state machine {STATE_MACHINE_NAME} found")
     return state_machine_arn
 
 
