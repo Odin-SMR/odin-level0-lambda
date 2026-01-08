@@ -43,7 +43,7 @@ class Level0Stack(Stack):
             self,
             "OdinSMRImportLevel0Lambda",
             function_name="OdinSMRImportLevel0Lambda",
-            handler="import_l0_handler.import_l0_handler",
+            handler="handler.import_l0_handler.import_l0_handler",
             code=Code.from_asset("./level0/import_l0"),
             timeout=lambda_timeout,
             architecture=Architecture.X86_64,
