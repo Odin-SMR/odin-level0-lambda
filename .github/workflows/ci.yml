@@ -35,6 +35,11 @@ jobs:
 
   cdk-synth:
     runs-on: ubuntu-24.04
+
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v6
