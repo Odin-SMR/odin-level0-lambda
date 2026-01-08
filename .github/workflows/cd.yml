@@ -42,7 +42,8 @@ jobs:
 
       - name: Generate lambda requirements
         run: |
-          uv export --locked --only-group import_l0 --no-editable -o level0/import_l0/requirements.txt
+          uv export --locked --only-group import-l0 --no-editable \
+            -o level0/import_l0/requirements.txt
 
       - name: Install lambda dependencies
         run: |
