@@ -288,7 +288,7 @@ class Level0Stack(Stack):
         sfn.StateMachine(
             self,
             "OdinSMRImportLevel0StateMachine",
-            definition=start,
+            definition_body=sfn.DefinitionBody.from_chainable(start),
             state_machine_name="OdinSMRImportLevel0StateMachine",
         )
 
