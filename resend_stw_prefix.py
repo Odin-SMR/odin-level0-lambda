@@ -7,12 +7,16 @@ import sys
 from typing import Any
 
 import boto3
+from mypy_boto3_s3 import S3Client
+from mypy_boto3_sqs import SQSClient
+from mypy_boto3_sqs.type_defs import SendMessageBatchRequestEntryTypeDef
 
 
 BUCKET_NAME = "odin-pdc-l0"
 QUEUE_NAME = "ProcessLevel0Queue"
 FILE_TYPES = ("ac2", "ac1", "att", "shk", "fba")
 PREFIX_RE = re.compile(r"^[0-9a-fA-F]{3}$")
+BATCH_SIZE = 10  # Maximum number of messages per SQS batch
 
 
 def build_s3_event_message(bucket: str, key: str) -> dict[str, Any]:
@@ -34,24 +38,26 @@ def build_s3_event_message(bucket: str, key: str) -> dict[str, Any]:
 
 
 def send_objects_for_prefix(stw_prefix: str, profile: str | None = None) -> int:
-    """List matching S3 objects and send one SQS message per object.
+    """List matching S3 objects and send SQS messages in batches.
 
     Returns the number of messages sent.
     """
 
     if profile is not None:
-        session: Any = boto3.Session(profile_name=profile)
+        session = boto3.Session(profile_name=profile)
     else:
         session = boto3.Session()
 
-    s3_client: Any = session.client("s3")
-    sqs_client: Any = session.client("sqs")
+    s3_client: S3Client = session.client("s3")
+    sqs_client: SQSClient = session.client("sqs")
 
     queue_url = sqs_client.get_queue_url(QueueName=QUEUE_NAME)["QueueUrl"]
 
     paginator = s3_client.get_paginator("list_objects_v2")
 
     sent_count = 0
+    batch_entries: list[SendMessageBatchRequestEntryTypeDef] = []
+    batch_id_counter = 0
 
     for file_type in FILE_TYPES:
         prefix = f"{file_type}/{stw_prefix}"
@@ -66,8 +72,30 @@ def send_objects_for_prefix(stw_prefix: str, profile: str | None = None) -> int:
                 key = obj["Key"]
                 message_body = json.dumps(build_s3_event_message(BUCKET_NAME, key))
 
-                sqs_client.send_message(QueueUrl=queue_url, MessageBody=message_body)
-                sent_count += 1
+                batch_entries.append(
+                    {
+                        "Id": str(batch_id_counter),
+                        "MessageBody": message_body,
+                    }
+                )
+                batch_id_counter += 1
+
+                if len(batch_entries) == BATCH_SIZE:
+                    sqs_client.send_message_batch(
+                        QueueUrl=queue_url,
+                        Entries=batch_entries,
+                    )
+                    sent_count += len(batch_entries)
+                    batch_entries = []
+                    batch_id_counter = 0
+
+    # Send any remaining messages in the batch
+    if batch_entries:
+        sqs_client.send_message_batch(
+            QueueUrl=queue_url,
+            Entries=batch_entries,
+        )
+        sent_count += len(batch_entries)
 
     return sent_count
 
