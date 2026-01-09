@@ -61,7 +61,7 @@ class TestParseEventMessage:
 
     def test_parse_missing_records(self) -> None:
         """Missing Records field should raise InvalidMessage."""
-        event = {}  # type: ignore
+        event: dict[str, Any] = {}
         with pytest.raises(InvalidMessage):
             parse_event_message(event)
 

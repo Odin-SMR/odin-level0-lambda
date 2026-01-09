@@ -70,7 +70,7 @@ def activate_l0_handler(event: Event, context: Context) -> dict[str, int]:
         context: Lambda context
 
     Returns:
-        dict with StatusCode 200 on success, 500 on failure
+        dict with StatusCode 200 on success
     """
     try:
         # Parse the SQS message containing S3 event
