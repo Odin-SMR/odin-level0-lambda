@@ -16,6 +16,7 @@ BUCKET_NAME = "odin-pdc-l0"
 QUEUE_NAME = "ProcessLevel0Queue"
 FILE_TYPES = ("ac2", "ac1", "att", "shk", "fba")
 PREFIX_RE = re.compile(r"^[0-9a-fA-F]{3}$")
+BATCH_SIZE = 10  # Maximum number of messages per SQS batch
 
 
 def build_s3_event_message(bucket: str, key: str) -> dict[str, Any]:
@@ -79,7 +80,7 @@ def send_objects_for_prefix(stw_prefix: str, profile: str | None = None) -> int:
                 )
                 batch_id_counter += 1
 
-                if len(batch_entries) == 10:
+                if len(batch_entries) == BATCH_SIZE:
                     sqs_client.send_message_batch(
                         QueueUrl=queue_url,
                         Entries=batch_entries,
