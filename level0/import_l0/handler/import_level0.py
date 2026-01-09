@@ -122,7 +122,7 @@ def getAC(ac: ACfile) -> dict[str, Any]:
             data.append(ac.getBlock())
             if data[j] == []:
                 raise EOFError
-        cc = np.array(data, dtype="int16")
+        cc = np.array(data, dtype="uint16")
         cc.shape = (8, 96)
         cc64 = np.array(cc, dtype="int64")
         lags = np.array(head[50:58], dtype="uint16")
