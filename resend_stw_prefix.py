@@ -56,6 +56,7 @@ def send_objects_for_prefix(stw_prefix: str, profile: str | None = None) -> int:
 
     sent_count = 0
     batch_entries: list[SendMessageBatchRequestEntryTypeDef] = []
+    batch_id_counter = 0
 
     for file_type in FILE_TYPES:
         prefix = f"{file_type}/{stw_prefix}"
@@ -72,10 +73,11 @@ def send_objects_for_prefix(stw_prefix: str, profile: str | None = None) -> int:
 
                 batch_entries.append(
                     {
-                        "Id": str(len(batch_entries)),
+                        "Id": str(batch_id_counter),
                         "MessageBody": message_body,
                     }
                 )
+                batch_id_counter += 1
 
                 if len(batch_entries) == 10:
                     sqs_client.send_message_batch(
@@ -84,6 +86,7 @@ def send_objects_for_prefix(stw_prefix: str, profile: str | None = None) -> int:
                     )
                     sent_count += len(batch_entries)
                     batch_entries = []
+                    batch_id_counter = 0
 
     # Send any remaining messages in the batch
     if batch_entries:
